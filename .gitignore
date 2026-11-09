@@ -220,6 +220,7 @@ __marimo__/
 .streamlit/secrets.toml
 .workbuddy/
 .tmp-pycheck/
+.tmp-layout/
 .playwright-cli/
 
 # ---- MakeCode Arcade / mkc 生成的构建产物（源码与 UF2 仍需提交） ----

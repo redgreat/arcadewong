@@ -63,10 +63,13 @@ namespace Contra {
     }
     function fire(ax0: number, ay0: number, dx: number, dy: number,
         spd: number, dmg: number, owner: number, life: number): void {
-        if (bx.length > 70) return
+        if (bx.length > 90) return
         bx.push(ax0); by.push(ay0); bvx.push(dx * spd); bvy.push(dy * spd)
         bo.push(owner); bd.push(dmg); bl.push(life)
     }
+    // 子弹判定框尺寸：伤害 4 的是激光（更大更粗），其余是普通弹
+    function bW(i: number): number { return bd[i] >= 4 ? 6 : 4 }
+    function bH(i: number): number { return bd[i] >= 4 ? 4 : 3 }
     function boom(x: number, y: number, big: number): void {
         fx.push(x); fy.push(y); ft.push(big > 0 ? 22 : 12)
         G.beep(big > 0 ? 90 : 180, big > 0 ? 180 : 70)
@@ -126,7 +129,7 @@ namespace Contra {
         fx = []; fy = []; ft = []
         px = 20; py = 80; vx = 0; vy = 0; cam = 0
         invuln = 1200; kills = 0; clearT = 0
-        bossHpMax = 18 + s * 8
+        bossHpMax = 24 + s * 10
         bossHp = bossHpMax
         bossAlive = true
         bossY = 56; bossDir = 1; bossCd = 900
@@ -157,22 +160,23 @@ namespace Contra {
         if (dy !== 0 && !l && !rr) dx = 0
         const sx = px + (dx > 0 ? 8 : (dx < 0 ? -2 : 2))
         const sy = py + (dy < 0 ? -2 : (dy > 0 ? 9 : 4))
+        // 子弹判定 4x3（激光 6x4），伤害 2（激光 4）
         if (weapon === 0) {
-            fire(sx, sy, dx, dy, 175, 1, 0, 70); fireCd = 210
+            fire(sx, sy, dx, dy, 190, 2, 0, 80); fireCd = 210
         } else if (weapon === 1) {
-            fire(sx, sy, dx, dy, 220, 1, 0, 70); fireCd = 105
+            fire(sx, sy, dx, dy, 235, 2, 0, 80); fireCd = 105
         } else if (weapon === 2) {
-            fire(sx, sy, dx, dy, 175, 1, 0, 70)
+            fire(sx, sy, dx, dy, 190, 2, 0, 80)
             if (dy === 0) {
-                fire(sx, sy - 3, dx, -0.5, 175, 1, 0, 70)
-                fire(sx, sy + 3, dx, 0.5, 175, 1, 0, 70)
+                fire(sx, sy - 3, dx, -0.5, 190, 2, 0, 80)
+                fire(sx, sy + 3, dx, 0.5, 190, 2, 0, 80)
             } else {
-                fire(sx - 3, sy, dx - 0.5, dy, 175, 1, 0, 70)
-                fire(sx + 3, sy, dx + 0.5, dy, 175, 1, 0, 70)
+                fire(sx - 3, sy, dx - 0.5, dy, 190, 2, 0, 80)
+                fire(sx + 3, sy, dx + 0.5, dy, 190, 2, 0, 80)
             }
             fireCd = 250
         } else {
-            fire(sx, sy, dx, dy, 265, 3, 0, 80); fireCd = 300
+            fire(sx, sy, dx, dy, 285, 4, 0, 90); fireCd = 300
         }
         G.beep(weapon === 3 ? 1200 : 880, 35)
     }
@@ -232,17 +236,37 @@ namespace Contra {
             if (G.hit(px, py, 6, 10, ex[i], ey[i], 8, 8)) hitPlayer()
         }
 
-        // --- Boss ---
+        // --- Boss：上下巡游 + 扇形多方向齐射（进入画面后才开火）---
         const bwx = (W - 16) * TS
-        if (bossAlive && px > bwx - 150) {
-            bossY += bossDir * 22 * dt
-            if (bossY < 38) { bossY = 38; bossDir = 1 }
+        if (bossAlive && cam > bwx - 156) {
+            bossY += bossDir * (18 + stage * 5) * dt
+            if (bossY < 34) { bossY = 34; bossDir = 1 }
             if (bossY > 86) { bossY = 86; bossDir = -1 }
             bossCd -= dt * 1000
             if (bossCd <= 0) {
-                bossCd = stage === 3 ? 480 : 700
-                for (let a = -1; a <= 1; a++) {
-                    fire(bwx + 6, bossY + 8, -1, a * 0.4, 88, 1, 1, 120)
+                bossCd = stage === 3 ? 620 : (stage === 2 ? 700 : 800)
+                const cx = bwx + 4
+                const cy = bossY + 8
+                // 以「Boss→玩家」这条线为轴扇形展开：站着不动必被覆盖，只能走位躲
+                const ax0 = px - cx
+                const ay0 = (py + 4) - cy
+                const baseDeg = Math.atan2(ay0, ax0) * 180 / Math.PI
+                const n = stage === 1 ? 5 : (stage === 2 ? 6 : 7)
+                const spread = stage === 2 ? 130 : (stage === 3 ? 160 : 100)
+                const spd = 96 + stage * 8
+                for (let k = 0; k < n; k++) {
+                    const deg = baseDeg + (k / (n - 1) - 0.5) * spread
+                    const rad = deg * Math.PI / 180
+                    fire(cx, cy, Math.cos(rad), Math.sin(rad), spd, 1, 1, 110)
+                }
+                // 第 2 关起补一发高速直瞄弹；第 3 关再加一发偏角慢弹，形成交叉火力
+                if (stage >= 2) {
+                    const am = Math.max(1, Math.sqrt(ax0 * ax0 + ay0 * ay0))
+                    fire(cx, cy, ax0 / am, ay0 / am, spd + 30, 1, 1, 110)
+                    if (stage === 3) {
+                        const r2 = (baseDeg + 16) * Math.PI / 180
+                        fire(cx, cy, Math.cos(r2), Math.sin(r2), spd - 30, 1, 1, 130)
+                    }
                 }
                 G.beep(200, 60)
             }
@@ -264,10 +288,14 @@ namespace Contra {
                     hitPlayer(); gone = true
                 }
             } else if (!gone) {
+                const cw = bW(i)
+                const ch = bH(i)
+                const cx0 = bx[i] - Math.floor(cw / 2)
+                const cy0 = by[i] - Math.floor(ch / 2)
                 for (let j = ex.length - 1; j >= 0; j--) {
-                    if (G.hit(bx[i] - 1, by[i] - 1, 3, 3, ex[j], ey[j], 8, 8)) {
+                    if (G.hit(cx0, cy0, cw, ch, ex[j], ey[j], 8, 8)) {
                         ehp[j] -= bd[i]
-                        if (weapon !== 3) gone = true
+                        if (bd[i] < 4) gone = true
                         if (ehp[j] <= 0) {
                             boom(ex[j], ey[j], 0)
                             score += 50; kills++
@@ -278,9 +306,9 @@ namespace Contra {
                         break
                     }
                 }
-                if (!gone && bossAlive && G.hit(bx[i] - 1, by[i] - 1, 3, 3, bwx, bossY, 20, 16)) {
+                if (!gone && bossAlive && G.hit(cx0, cy0, cw, ch, bwx, bossY, 20, 16)) {
                     bossHp -= bd[i]
-                    if (weapon !== 3) gone = true
+                    if (bd[i] < 4) gone = true
                     G.beep(300, 30)
                     if (bossHp <= 0) {
                         bossAlive = false
@@ -315,7 +343,12 @@ namespace Contra {
             ft[i] -= 1
             if (ft[i] <= 0) { fx.splice(i, 1); fy.splice(i, 1); ft.splice(i, 1) }
         }
-        cam = G.clamp(px - 55, 0, W * TS - 160)
+        // —— 镜头 ——
+        // 平时：玩家固定在屏幕左侧 1/3 处滚动；Boss 战：镜头停在 Boss 面前，
+        // 把玩家限制在左半屏，才有横向空间躲多方向弹幕（否则只能贴脸硬吃）
+        const camEnd = bossAlive ? G.clamp(bwx - 118, 0, W * TS - 160) : W * TS - 160
+        cam = G.clamp(px - 55, 0, camEnd)
+        if (bossAlive) px = G.clamp(px, cam + 14, bwx - 34)
     }
 
     function draw(): void {
@@ -401,11 +434,20 @@ namespace Contra {
                 G.r(sx - 7, sy + 4, 2, 2, G.YELLOW)
             }
         }
-        // 子弹
+        // 子弹（玩家弹 4x3、激光 6x4、敌弹 4x4）
         for (let i = 0; i < bx.length; i++) {
             const sx = bx[i] - cam
-            if (bo[i] === 0) G.r(sx - 1, by[i], weapon === 3 ? 5 : 3, weapon === 3 ? 3 : 2, G.YELLOW)
-            else G.r(sx - 1, by[i] - 1, 3, 3, G.RED)
+            if (bo[i] === 0) {
+                const cw = bW(i)
+                const ch = bH(i)
+                const x0 = Math.floor(sx - cw / 2)
+                const y0 = Math.floor(by[i] - ch / 2)
+                G.r(x0, y0, cw, ch, cw >= 6 ? G.CYAN : G.YELLOW)
+                G.r(x0 + 1, y0 + 1, cw - 2, ch - 2, G.WHITE)
+            } else {
+                G.r(Math.floor(sx) - 1, Math.floor(by[i]) - 1, 4, 4, G.RED)
+                G.r(Math.floor(sx), Math.floor(by[i]), 2, 2, G.YELLOW)
+            }
         }
         // 爆炸
         for (let i = 0; i < fx.length; i++) {
@@ -419,7 +461,7 @@ namespace Contra {
         G.t(WNAMES[weapon], 24, 1, G.YELLOW)
         G.t("SC:" + score, 74, 1, G.WHITE)
         G.t("L:" + lives, 138, 1, G.RED)
-        if (bossAlive && px > (W - 20) * TS) {
+        if (bossAlive && cam > (W - 16) * TS - 160) {
             G.r(30, 12, 100, 5, G.BLACK)
             G.r(31, 13, Math.max(0, Math.floor(bossHp * 98 / bossHpMax)), 3, G.RED)
             G.t("BOSS", 2, 12, G.RED)

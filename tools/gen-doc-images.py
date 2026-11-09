@@ -61,15 +61,15 @@ def memory_map():
     d.rectangle([br, y, x1, y + bar_h], fill=(226, 232, 240))
 
     # 已用部分
-    used = 343.0
+    used = 344.2
     ux = br + used / 448.0 * (x1 - br)
     d.rectangle([br, y, ux, y + bar_h], fill=ACCENT)
     d.text((br + 14, y + 12), "应用区 448 KiB", font=f(18, True), fill=(255, 255, 255))
-    d.text((br + 14, y + 42), "四合一合集已用 343 KiB（76.6%）", font=f(15), fill=(226, 236, 247))
+    d.text((br + 14, y + 42), "四合一合集已用 344 KiB（76.8%）", font=f(15), fill=(226, 236, 247))
     d.text((br + 14, y + 64), "0x0801_0000 →", font=f(13), fill=(200, 218, 238))
 
     # 剩余部分
-    d.text((ux + 14, y + 16), "剩 105 KiB", font=f(17, True), fill=ACCENT)
+    d.text((ux + 14, y + 16), "剩 104 KiB", font=f(17, True), fill=ACCENT)
     d.text((ux + 14, y + 46), "≈ 5 个同类小游戏", font=f(14), fill=MUTED)
 
     # 刻度

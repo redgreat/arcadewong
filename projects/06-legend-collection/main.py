@@ -418,7 +418,7 @@ def contra_start():
             lastSpawn = now
             ex.append(158)
             ey.append(92)
-            ehp.append(1 + stage)
+            ehp.append(2 + stage * 2)     # 子弹伤害 2，血量按两倍记，保持击杀节奏
         # 子弹飞
         i = 0
         while i < len(bx):
@@ -454,11 +454,11 @@ def contra_start():
             j = 0
             dead = False
             while j < len(bx):
-                if hit(bx[j], by[j], 3, 2, ex[i], ey[i], 8, 8):
+                if hit(bx[j], by[j], 4, 3, ex[i], ey[i], 8, 8):
                     bx.remove_at(j)
                     by.remove_at(j)
                     bvx.remove_at(j)
-                    ehp[i] = ehp[i] - 1
+                    ehp[i] = ehp[i] - 2          # 单发伤害 2
                     if ehp[i] <= 0:
                         dead = True
                     break
@@ -477,7 +477,7 @@ def contra_start():
         i = 0
         while i < len(ebx):
             ebx[i] = ebx[i] - 1.5
-            if hit(px, py, 8, 8, ebx[i], eby[i], 3, 2):
+            if hit(px, py, 8, 8, ebx[i], eby[i], 4, 3):
                 hp = hp - 1
                 ebx.remove_at(i)
                 eby.remove_at(i)
@@ -500,7 +500,8 @@ def contra_start():
         r(px + 5, py - 2, 4, 3, WHITE)
         i = 0
         while i < len(bx):
-            r(bx[i], by[i], 3, 2, YELLOW)
+            r(bx[i], by[i], 4, 3, YELLOW)       # 子弹加大
+            r(bx[i] + 1, by[i] + 1, 2, 1, WHITE)
             i = i + 1
         i = 0
         while i < len(ex):
@@ -509,7 +510,8 @@ def contra_start():
             i = i + 1
         i = 0
         while i < len(ebx):
-            r(ebx[i], eby[i], 3, 2, ORANGE)
+            r(ebx[i], eby[i], 4, 3, RED)
+            r(ebx[i] + 1, eby[i] + 1, 2, 1, YELLOW)
             i = i + 1
         if over:
             over_panel("GAME OVER", score, 0)
@@ -881,12 +883,13 @@ if launch == 0:
             xx = (i * 37 + Math.floor(frame / 4)) % SW
             screen.set_pixel(xx, 26 + i * 7, CYAN if i % 3 == 0 else DKBLUE)
             i = i + 1
-        r(4, 4, 152, 20, BLUE)
-        box(4, 4, 152, 20, CYAN)
-        tc("RETRO 4-IN-1", 9, WHITE)
+        # 160x120 布局：标题 2..20，4 条目 26/44/62/80，底部提示 101/110
+        r(4, 2, 152, 18, BLUE)
+        box(4, 2, 152, 18, CYAN)
+        tc("RETRO 4-IN-1", 8, WHITE)
         i = 0
         while i < 4:
-            yy = 30 + i * 20
+            yy = 26 + i * 18
             if cursor == i + 1:
                 r(8, yy - 2, 144, 17, DKBLUE)
                 box(8, yy - 2, 144, 17, YELLOW)
@@ -894,7 +897,8 @@ if launch == 0:
             t(str(i + 1) + ". " + NAMES[i], 30, yy, YELLOW if cursor == i + 1 else WHITE)
             t(SUBS[i], 30, yy + 8, ORANGE if cursor == i + 1 else GRAY)
             i = i + 1
-        tc("UP/DOWN  A=PLAY  B=MENU", 110, CYAN)
+        tc("UP/DOWN  A=PLAY", 101, CYAN)
+        tc("B = MENU", 110, GRAY)
 
     controller.up.on_event(ControllerButtonEvent.PRESSED, menu_up)
     controller.down.on_event(ControllerButtonEvent.PRESSED, menu_down)

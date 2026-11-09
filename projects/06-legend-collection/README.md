@@ -15,14 +15,14 @@
 | `main.ts` | **公共层**：调色板、绘图小工具、非阻塞音效、菜单、启动分支、长按 B 返回 |
 | `snake.ts` | 贪吃蛇：20×13 网格、4 套障碍图、穿墙、逐级加速、金色奖励食物、最高分存 Flash、暂停 |
 | `platformer.ts` | 横版闯关：3 世界卷轴、长短跳、冲刺、问号砖出道具、两种敌人可踩、尖刺深坑、变大、旗帜过关 |
-| `contra.ts` | 横版枪战：3 关、八方向射击、4 种武器、步兵/炮台/冲锋兵、移动 Boss + 血条、武器胶囊、爆炸粒子 |
+| `contra.ts` | 横版枪战：3 关、八方向射击、4 种武器、步兵/炮台/冲锋兵、移动 Boss + 扇形多向弹幕 + 血条、武器胶囊、爆炸粒子 |
 | `tanks.ts` | 坦克大战：13×13 战场 4 图、砖墙四段破坏、钢/水/草、护老鹰基地、4 种敌坦克 AI、子弹对撞、6 道具 |
 | `main.py` | **Python 版（教学精简版）**：同样的菜单架构 + 同样 4 个可玩的游戏，压缩成单文件，便于对照学习 |
 | `pxt.json` / `mkc.json` | 项目清单（5 个 .ts）/ F4 编译设置 |
 | `README.md` | 本文件 |
 
 > TS 版约 1968 行；Python 版约 900 行，是**同源精简实现**（关卡数、道具数比 TS 版少），用来讲语法与架构，不适合当作「完整移植」。
-> 两个版本都已实测编译出 F4 固件：TS 343.0 KiB、Python 303.0 KiB。
+> 两个版本都已实测编译出 F4 固件：TS 344.2 KiB、Python 303.2 KiB。
 
 ---
 
@@ -166,9 +166,9 @@ game.onShade(function () {    // 绘制：只画，不改逻辑
 | + 横版闯关 | +18.2 KiB |
 | + 横版枪战 | +19.0 KiB |
 | + 坦克大战 | +19.2 KiB |
-| **四合一完整** | **343.0 KiB / 448 KiB（76.6%）** |
+| **四合一完整** | **344.2 KiB / 448 KiB（76.8%）** |
 
-**为什么**：应用区 `0x08010000`~`0x08080000` 共 448 KiB。每加一个游戏都编一次，确认没超，再加下一个。还剩约 105 KiB。
+**为什么**：应用区 `0x08010000`~`0x08080000` 共 448 KiB。每加一个游戏都编一次，确认没超，再加下一个。还剩约 104 KiB。
 
 > 完整代码：`main.ts` + 4 个游戏 `.ts`；Python 对照：`main.py` 单文件。
 
@@ -206,7 +206,7 @@ game.onShade(function () {    // 绘制：只画，不改逻辑
 
 | # | 任务 | 改哪里 | 预期现象 |
 | --- | --- | --- | --- |
-| 1 | 换菜单标题颜色 | `G.tc("RETRO 4-IN-1", 9, G.WHITE)` 的 `WHITE` 改 `YELLOW` | 立刻可见 |
+| 1 | 换菜单标题颜色 | `G.tc("RETRO 4-IN-1", 8, G.WHITE)` 的 `WHITE` 改 `YELLOW` | 立刻可见 |
 | 2 | 贪吃蛇走得慢一点 | `snake.ts` 的 `tickMs` / Python 版 `speed = 150` → 250 | 更好控制 |
 | 3 | 贪吃蛇加速更猛 | `speed -= 10` → `speed -= 20` | 后期很刺激 |
 | 4 | 小人或坦克换色 | 对应 `G.r(..., G.RED)` 的颜色常量 | 美术改造 |
@@ -229,7 +229,9 @@ game.onShade(function () {    // 绘制：只画，不改逻辑
 | 返回菜单的长按时间 | `G.tickQuit()` 里的 `1200` |
 | 贪吃蛇速度、地图、奖励 | `snake.ts` 开头的常量与 `MAPS` |
 | 跳跃高度、重力、关卡 | `platformer.ts` 开头的常量与 `WORLDS` |
-| 武器、敌人、Boss 血量 | `contra.ts` 开头的常量 |
+| 武器伤害与子弹大小 | `contra.ts` 的 `firePlayer()`（伤害）与 `bW()` / `bH()`（判定框） |
+| Boss 弹幕密度与扇面 | `contra.ts` 的 Boss 段：`bossCd`（间隔）/ `n`（发数）/ `spread`（扇面角度） |
+| Boss 血量 | `contra.ts` 的 `buildStage()` 里 `bossHpMax = 24 + s * 10` |
 | 地图、敌坦克 AI、道具 | `tanks.ts` 的 `MAPS` 与各 `const` |
 | Python 版所有玩法参数 | `main.py` 各 `xxx_start()` 函数开头 |
 
@@ -248,7 +250,7 @@ game.onShade(function () {    // 绘制：只画，不改逻辑
 | 整数除法 | `Math.floor(a / b)` | `Math.floor(a / b)`（`//` 不保证可用） |
 | 音效 | `music.PlaybackMode.InBackground` | `music.PlaybackMode.IN_BACKGROUND` |
 | 绘制回调 | `game.onShade(function(){...})` | 具名 `def draw(): ...` + `game.on_shade(draw)` |
-| 体积 | 343.0 KiB（完整 4 游戏） | 303.0 KiB（精简版 4 游戏） |
+| 体积 | 344.2 KiB（完整 4 游戏） | 303.2 KiB（精简版 4 游戏） |
 
 > 两个版本**共用同一套架构**：settings 存选择 → reset → 只启动一个分支 → `onUpdate` 算 / `onShade` 画。语言换了，思路没换。这是给孩子讲「编程思想比语法重要」最好的例子。
 

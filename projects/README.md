@@ -147,7 +147,7 @@ tools/
 
 `firmware/09-legend-4in1.uf2` —— 一个固件装 **贪吃蛇 / 横版动作闯关 / 横版枪战 / 坦克攻防**，共 1968 行 TypeScript，7 张关卡地图、3 个关底 Boss、6 种道具、4 种武器，全部原创像素美术。
 
-- **内存实测：343.0 KiB / 448 KiB 可用 Flash（76.6%），还剩 105 KiB。** 四个游戏各自只占 8~19 KiB。
+- **内存实测：344.2 KiB / 448 KiB 可用 Flash（76.8%），还剩 104 KiB。** 四个游戏各自只占 8~19 KiB。
 - 省内存的关键：不用精灵系统，改成每帧直接画屏；四个游戏代码都在 Flash，靠 `settings` + `game.reset()` 一次只跑一个。
 - 官方同类积木示例对照、每个游戏的完整功能清单与操作、**逐游戏体积隔离编译数据**都在 `projects/06-legend-collection/README.md`。
 - 刷入：`powershell -ExecutionPolicy Bypass -File tools\flash.ps1 -Game 9`（记得按复位键）。
