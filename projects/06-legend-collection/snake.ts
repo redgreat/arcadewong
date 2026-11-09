@@ -7,7 +7,7 @@ namespace Snake {
     const CELL = 8
     const COLS = 20
     const ROWS = 13
-    const TOP = 16
+    const TOP = 14
 
     // 4 套障碍布局，'.' 空 '#' 砖墙（每串 20 字符 x 13 行）
     const MAPS: string[][] = [
@@ -86,6 +86,9 @@ namespace Snake {
     let paused = false
     let frame = 0
     let wrap = true
+    let introT = 0              // 开局操作卡倒计时
+    let msg = ""
+    let msgT = 0
 
     function wallAt(x: number, y: number): boolean {
         return walls.indexOf(x + y * 32) >= 0
@@ -127,8 +130,22 @@ namespace Snake {
             tries++
         }
     }
+    // 蛇头是数组最后一位。尾巴在前、头在后，朝向右侧才走得出去。
     function resetSnake(): void {
-        bx = [4, 3, 2]
+        // 找一处「横着 4 格全空」的地方放蛇，避免复活就贴墙
+        for (let y = 6; y < ROWS; y++) {
+            for (let x = 1; x < COLS - 3; x++) {
+                if (!wallAt(x, y) && !wallAt(x + 1, y) && !wallAt(x + 2, y) && !wallAt(x + 3, y)) {
+                    bx = [x, x + 1, x + 2]
+                    by = [y, y, y]
+                    dx = 1; dy = 0; ndx = 1; ndy = 0
+                    turned = false
+                    grow = 0
+                    return
+                }
+            }
+        }
+        bx = [2, 3, 4]
         by = [6, 6, 6]
         dx = 1; dy = 0; ndx = 1; ndy = 0
         turned = false
@@ -140,12 +157,16 @@ namespace Snake {
         resetSnake()
         placeFood()
         goldx = -1
+        msg = "LEVEL " + level
+        msgT = 900
         G.beep(523, 90)
     }
 
-    function die(): void {
-        G.setOver("SNAKE", score, "snkbest")
-        G.beep(110, 260)
+    // 无限生命：撞墙 / 撞自己只是「退回三节」，不结束游戏
+    function crash(): void {
+        G.beep(110, 240)
+        if (score >= 10) score -= 10
+        resetSnake()
     }
 
     function move(): void {
@@ -159,14 +180,14 @@ namespace Snake {
             if (hy < 0) hy = ROWS - 1
             if (hy >= ROWS) hy = 0
         } else if (hx < 0 || hx >= COLS || hy < 0 || hy >= ROWS) {
-            die(); return
+            crash(); return
         }
-        if (wallAt(hx, hy)) { die(); return }
+        if (wallAt(hx, hy)) { crash(); return }
         // 撞到自己（尾巴那一格如果是本帧要移走的，可以进）
         const tailWillMove = grow === 0
         for (let i = 0; i < bx.length; i++) {
             if (tailWillMove && i === 0) continue
-            if (bx[i] === hx && by[i] === hy) { die(); return }
+            if (bx[i] === hx && by[i] === hy) { crash(); return }
         }
         bx.push(hx); by.push(hy)
         if (grow > 0) grow--
@@ -188,66 +209,80 @@ namespace Snake {
         }
     }
 
-    function drawBrick(x: number, y: number, w: number, h: number, c1: number, c2: number): void {
-        G.r(x, y, w, h, c1)
-        G.line(x, y + 3, x + w - 1, y + 3, c2)
-        G.line(x + w / 2, y, x + w / 2, y + 3, c2)
+    // 木箱式砖墙：深色底 + 木板缝 + 顶部高光
+    function drawBrick(x: number, y: number, w: number, h: number): void {
+        G.r(x, y, w, h, G.WOOD)
+        G.r(x, y, w, 1, G.ORANGE)
+        G.r(x, y, 1, h, G.ORANGE)
+        G.r(x, y + 4, w, 1, G.DKGRAY)
+        G.r(x + 3, y + 1, 1, 3, G.DKGRAY)
+        G.r(x + 6, y + 5, 1, 3, G.DKGRAY)
     }
 
     function draw(): void {
         screen.fill(G.BLACK)
-        // HUD
-        G.r(0, 0, 160, 10, G.BLACK)
-        G.t("SNAKE", 2, 1, G.GREEN)
-        G.t("SC:" + score, 56, 1, G.WHITE)
-        G.t("LV:" + level, 100, 1, G.CYAN)
-        G.t("B:" + (settings.readNumber("snkbest") || 0), 130, 1, G.YELLOW)
-        G.line(0, 11, 159, 11, G.BLUE)
-        // 边框
-        G.box(0, TOP - 1, COLS * CELL, ROWS * CELL + 2, G.DKBLUE)
-        // 网格点
-        for (let y = 0; y < ROWS; y++) {
-            for (let x = 0; x < COLS; x++) {
-                screen.setPixel(x * CELL, y * CELL + TOP, G.DKBLUE)
-            }
-        }
+        // ---- 场地：深蓝网格（每格 8px），上下各一条暗青边框 ----
+        for (let x = 0; x <= COLS; x++) G.r(x * CELL, TOP, 1, ROWS * CELL, G.BLUE)
+        for (let y = 0; y <= ROWS; y++) G.r(0, TOP + y * CELL, COLS * CELL, 1, G.BLUE)
+        G.r(0, TOP - 2, 160, 2, G.TEAL)
+        G.r(0, TOP + ROWS * CELL, 160, 2, G.TEAL)
         // 墙
         for (let i = 0; i < walls.length; i++) {
             const wx = walls[i] % 32
             const wy = Math.floor(walls[i] / 32)
-            drawBrick(wx * CELL, wy * CELL + TOP, CELL, CELL, G.BROWN, G.DKRED)
+            drawBrick(wx * CELL, wy * CELL + TOP, CELL, CELL)
         }
-        // 食物
+        // ---- 食物：苹果（红果 + 高光 + 绿叶 + 呼吸光环）----
         const pulse = (frame % 20) < 10
-        G.r(fx * CELL + 2, fy * CELL + TOP + 2, 5, 5, pulse ? G.RED : G.PINK)
-        G.r(fx * CELL + 4, fy * CELL + TOP, 2, 2, G.GREEN)
+        const apx = fx * CELL, apy = fy * CELL + TOP
+        if (pulse) G.box(apx + 1, apy + 1, 6, 6, G.DKGRAY)
+        G.r(apx + 2, apy + 2, 5, 5, pulse ? G.RED : G.PINK)
+        G.r(apx + 3, apy + 3, 1, 1, G.WHITE)
+        G.r(apx + 4, apy, 1, 2, G.GREEN)
+        G.r(apx + 5, apy, 2, 1, G.GREEN)
+        // 金苹果：闪烁的十字星
         if (goldx >= 0 && (frame % 12) < 8) {
-            G.r(goldx * CELL + 1, goldy * CELL + TOP + 1, 6, 6, G.YELLOW)
-            G.r(goldx * CELL + 3, goldy * CELL + TOP + 3, 2, 2, G.WHITE)
+            const gx2 = goldx * CELL, gy2 = goldy * CELL + TOP
+            G.r(gx2 + 1, gy2 + 3, 6, 2, G.YELLOW)
+            G.r(gx2 + 3, gy2 + 1, 2, 6, G.YELLOW)
+            G.r(gx2 + 2, gy2 + 2, 4, 4, G.ORANGE)
+            G.r(gx2 + 3, gy2 + 3, 2, 2, G.WHITE)
         }
-        // 蛇身
+        // ---- 蛇：亮绿身体 + 青色鳞点，蛇头带白眼睛 ----
         for (let i = 0; i < bx.length; i++) {
-            const px = bx[i] * CELL
-            const py = by[i] * CELL + TOP
+            const px2 = bx[i] * CELL
+            const py2 = by[i] * CELL + TOP
             const head = i === bx.length - 1
-            const c = head ? G.GREEN : (i % 2 === 0 ? G.TEAL : G.GREEN)
-            G.r(px, py, CELL - 1, CELL - 1, c)
-            if (!head) G.r(px + 2, py + 2, 2, 2, G.CYAN)
-            else {
-                // 眼睛朝当前方向
+            if (head) {
+                G.r(px2, py2, CELL - 1, CELL - 1, G.GREEN)
+                G.r(px2 + 1, py2 + 1, CELL - 3, CELL - 3, G.TEAL)
                 if (dx !== 0) {
-                    G.r(px + (dx > 0 ? 5 : 1), py + 1, 1, 1, G.WHITE)
-                    G.r(px + (dx > 0 ? 5 : 1), py + 5, 1, 1, G.WHITE)
+                    G.r(px2 + (dx > 0 ? 5 : 1), py2 + 1, 1, 2, G.WHITE)
+                    G.r(px2 + (dx > 0 ? 5 : 1), py2 + 5, 1, 2, G.WHITE)
                 } else {
-                    G.r(px + 1, py + (dy > 0 ? 5 : 1), 1, 1, G.WHITE)
-                    G.r(px + 5, py + (dy > 0 ? 5 : 1), 1, 1, G.WHITE)
+                    G.r(px2 + 1, py2 + (dy > 0 ? 5 : 1), 2, 1, G.WHITE)
+                    G.r(px2 + 5, py2 + (dy > 0 ? 5 : 1), 2, 1, G.WHITE)
                 }
+            } else {
+                G.r(px2, py2, CELL - 1, CELL - 1, i % 2 === 0 ? G.GREEN : G.TEAL)
+                G.r(px2 + 3, py2 + 3, 2, 2, G.BLUE)
             }
         }
+        // ---- HUD ----
+        G.hudTop(G.GREEN)
+        G.t("LV " + level, 2, 1, G.CYAN)
+        G.tr("SC " + G.sc(score), 96, 1, G.WHITE)
+        G.tr("HI " + G.sc(settings.readNumber("snkbest") || 0), 158, 1, G.YELLOW)
+        // ---- 浮层：暂停 / 升级 ----
         if (paused) {
-            G.r(40, 52, 80, 20, G.BLUE)
-            G.tc("PAUSED", 57, G.WHITE)
+            G.panel(44, 50, 72, 28, G.CYAN, G.BLUE)
+            G.tc("PAUSED", 56, G.WHITE)
+            G.tc("A=RESUME", 68, G.GRAY)
+        } else if (msgT > 0) {
+            G.panel(52, 52, 56, 18, G.YELLOW, G.DKGRAY)
+            G.tc(msg, 58, G.YELLOW)
         }
+        if (introT > 0 && !paused && msgT <= 0) G.introCard("SNAKE", "D-PAD = STEER", "A = PAUSE", G.GREEN)
         if (G.isOver) G.drawOver()
         G.drawQuitBar()
     }
@@ -259,6 +294,9 @@ namespace Snake {
         goldx = -1
         paused = false
         frame = 0
+        introT = 2600
+        msg = ""
+        msgT = 0
         buildWalls(level)
         resetSnake()
         placeFood()
@@ -271,6 +309,8 @@ namespace Snake {
 
         game.onShade(function () {
             frame++
+            if (introT > 0) introT -= 20
+            if (msgT > 0) msgT -= 20
             const now = control.millis()
             if (goldT > 0) {
                 goldT -= 20

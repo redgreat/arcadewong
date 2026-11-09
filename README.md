@@ -47,7 +47,7 @@ projects/      9 个示例项目，每个都有 README.md + main.ts + main.py
   03-space-shooter       太空射击（两类碰撞 / 回收）
   04-game-collection     三合一游戏合集（菜单切换）
   05-toolbox             工具箱：计算器 / 秒表 / 骰子 / 手电筒 / 反应测试
-  06-legend-collection   RETRO 4-IN-1：贪吃蛇 / 闯关 / 枪战 / 坦克
+  06-legend-collection   RETRO 6-IN-1：贪吃蛇 / 闯关 / 枪战 / 坦克 / 火柴人 / 飞机大战
   py-01-catch-star       Python 入门：接星星
   py-02-dice             Python 入门：电子骰子
   py-03-stopwatch        Python 入门：秒表

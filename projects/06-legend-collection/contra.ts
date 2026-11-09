@@ -17,7 +17,6 @@ namespace Contra {
     let facing = 1
     let cam = 0
     let stage = 1
-    let lives = 3
     let score = 0
     let kills = 0
     let weapon = 0
@@ -32,6 +31,7 @@ namespace Contra {
     let bossDir = 1
     let bossCd = 0
     let bossAlive = false
+    let introT = 0
 
     let ex: number[] = []
     let ey: number[] = []
@@ -181,11 +181,10 @@ namespace Contra {
         G.beep(weapon === 3 ? 1200 : 880, 35)
     }
 
+    // 无限生命：被打中掉武器、回原位，不会 GAME OVER
     function hitPlayer(): void {
         if (invuln > 0 || G.isOver) return
-        lives--
         boom(px, py, 0)
-        if (lives <= 0) { G.setOver("RUN & GUN", score, "contrabest"); return }
         invuln = 1800
         weapon = 0
         px = cam + 18
@@ -352,40 +351,57 @@ namespace Contra {
     }
 
     function draw(): void {
-        screen.fill(G.DKBLUE)
-        // 星空 / 远山
-        for (let i = 0; i < 22; i++) {
-            const sx = (i * 37 + 13 - Math.floor(cam / 6)) % 200
-            screen.setPixel(sx < 0 ? sx + 200 : sx, (i * 17) % 90, G.CYAN)
+        // ---- 夜空：黑到深蓝的城市光晕 ----
+        screen.fill(G.BLACK)
+        for (let i = 0; i < 24; i++) {
+            const sx = (i * 41 + 9 - Math.floor(cam / 6)) % 210
+            screen.setPixel(sx < 0 ? sx + 210 : sx, (i * 17) % 66,
+                (i % 4 === 0) ? G.WHITE : G.CYAN)
         }
+        // 月亮（视差最慢）
+        const moonX = 124 - Math.floor(cam / 14) % 26
+        G.disc(moonX, 22, 7, G.GRAY)
+        G.disc(moonX - 1, 21, 5, G.WHITE)
+        // 远楼剪影 + 亮窗
         for (let i = 0; i < 7; i++) {
-            const mx = i * 44 - (Math.floor(cam / 3) % 308)
-            const xx = mx < -40 ? mx + 308 : mx
-            G.r(xx, 72, 26, 20, G.BLUE)
-            G.r(xx + 10, 64, 8, 8, G.BLUE)
+            let bxx = i * 44 - Math.floor(cam / 5) % 308
+            if (bxx < -44) bxx += 308
+            const hh = 30 + (i * 9) % 20
+            G.r(bxx, 104 - hh, 26, hh, G.BLUE)
+            for (let k = 0; k < 3; k++) {
+                G.r(bxx + 4 + k * 7, 104 - hh + 6, 3, 3,
+                    ((i + k) % 3 === 0) ? G.YELLOW : G.CYAN)
+            }
         }
-        // 地形
+        // ---- 地形 ----
         const c0 = Math.max(0, Math.floor(cam / TS) - 1)
         const c1 = Math.min(W - 1, c0 + 22)
         for (let x = c0; x <= c1; x++) {
             if (ground[x] < 0) continue
             const sx = x * TS - cam
             const yy = ground[x] * TS
-            G.r(sx, yy, TS, 120 - yy, G.BROWN)
+            G.r(sx, yy, TS, 120 - yy, G.WOOD)
             G.r(sx, yy, TS, 2, G.GREEN)
-            if (x % 3 === 0) G.line(sx + 2, yy + 4, sx + 5, yy + 4, G.DKRED)
+            if (x % 3 === 0) {
+                G.r(sx + 2, yy + 4, 3, 1, G.DKGRAY)
+                G.r(sx + 1, yy + 7, 2, 1, G.LTGLOW)
+            }
         }
+        // 钢平台
         for (let i = 0; i < plats.length; i += 3) {
             const sx = plats[i] * TS - cam
             const sy = plats[i + 1] * TS
             G.r(sx, sy, plats[i + 2] * TS, 4, G.GRAY)
             G.r(sx, sy, plats[i + 2] * TS, 1, G.WHITE)
+            G.r(sx, sy + 4, plats[i + 2] * TS, 1, G.DKGRAY)
         }
         // 武器胶囊
         for (let i = 0; i < kx.length; i++) {
             const sx = kx[i] - cam
             G.r(sx, ky[i], 8, 8, (frame % 12) < 6 ? G.YELLOW : G.RED)
-            G.r(sx + 2, ky[i] + 2, 4, 4, G.WHITE)
+            G.r(sx + 1, ky[i] + 1, 6, 6, G.BLACK)
+            G.r(sx + 2, ky[i] + 2, 4, 2, G.WHITE)
+            G.r(sx + 2, ky[i] + 5, 4, 1, G.YELLOW)
         }
         // 敌人
         for (let i = 0; i < ex.length; i++) {
@@ -395,9 +411,12 @@ namespace Contra {
             if (et[i] === 1) {
                 G.r(sx, sy + 3, 8, 5, G.GRAY)
                 G.r(sx + 2, sy, 4, 4, G.RED)
+                G.r(sx + 1, sy + 4, 6, 1, G.WHITE)
             } else if (et[i] === 2) {
                 G.r(sx + 1, sy + 1, 6, 7, G.PURPLE)
                 G.r(sx, sy + 5, 8, 2, G.WHITE)
+                G.r(sx + 2, sy + 3, 1, 2, G.BLACK)
+                G.r(sx + 5, sy + 3, 1, 2, G.BLACK)
             } else {
                 G.r(sx + 1, sy, 6, 3, G.RED)
                 G.r(sx + 1, sy + 3, 6, 5, G.ORANGE)
@@ -409,10 +428,13 @@ namespace Contra {
         if (bossAlive) {
             const sx = (W - 16) * TS - cam
             if (sx > -30 && sx < 170) {
-                G.r(sx, bossY, 20, 16, G.DKRED)
+                G.r(sx - 1, bossY - 1, 22, 18, G.BLACK)
+                G.r(sx, bossY, 20, 16, G.LTGLOW)
                 G.r(sx + 2, bossY + 2, 16, 10, G.RED)
                 G.r(sx + 5, bossY + 5, 4, 4, G.YELLOW)
                 G.r(sx + 12, bossY + 5, 4, 4, G.YELLOW)
+                G.r(sx + 6, bossY + 6, 2, 2, G.BLACK)
+                G.r(sx + 13, bossY + 6, 2, 2, G.BLACK)
                 G.r(sx - 3, bossY + 5, 4, 5, G.GRAY)
                 G.r(sx, bossY + 14, 4, 3, G.GRAY)
                 G.r(sx + 15, bossY + 14, 4, 3, G.GRAY)
@@ -424,6 +446,7 @@ namespace Contra {
             const sy = py
             G.r(sx, sy, 6, 3, G.CYAN)
             G.r(sx, sy + 3, 6, 5, G.BLUE)
+            G.r(sx + 1, sy + 4, 4, 1, G.CYAN)
             G.r(sx - 1, sy + 8, 3, 2, G.WHITE)
             G.r(sx + 5, sy + 8, 3, 2, G.WHITE)
             if (facing > 0) {
@@ -455,31 +478,33 @@ namespace Contra {
             const rr = Math.floor(ft[i] / 3) + 2
             G.r(sx - rr, fy[i] - rr, rr * 2, rr * 2, (frame % 6) < 3 ? G.YELLOW : G.ORANGE)
         }
-        // HUD
-        G.r(0, 0, 160, 10, G.BLACK)
+        // ---- HUD ----
+        G.hudTop(G.CYAN)
         G.t("ST" + stage, 2, 1, G.CYAN)
-        G.t(WNAMES[weapon], 24, 1, G.YELLOW)
-        G.t("SC:" + score, 74, 1, G.WHITE)
-        G.t("L:" + lives, 138, 1, G.RED)
+        G.tr(WNAMES[weapon], 74, 1, G.YELLOW)
+        G.tr("SC " + G.sc(score), 122, 1, G.WHITE)
+        G.tr("L:INF", 158, 1, G.RED)
+        // Boss 血条：标签在左，条子在 28..158，两者不重叠
         if (bossAlive && cam > (W - 16) * TS - 160) {
-            G.r(30, 12, 100, 5, G.BLACK)
-            G.r(31, 13, Math.max(0, Math.floor(bossHp * 98 / bossHpMax)), 3, G.RED)
             G.t("BOSS", 2, 12, G.RED)
+            G.bar(28, 12, 130, 6, bossHp / bossHpMax, G.RED, G.BLACK, G.LTGLOW)
         }
         if (clearT > 0) {
-            G.r(24, 44, 112, 28, G.BLUE)
-            G.tc("STAGE CLEAR!", 48, G.WHITE)
-            G.tc("+1000", 60, G.YELLOW)
+            G.panel(24, 42, 112, 30, G.CYAN, G.BLUE)
+            G.tc("STAGE CLEAR!", 47, G.WHITE)
+            G.tc("+" + 1000, 58, G.YELLOW)
         }
+        if (introT > 0) G.introCard("RUN & GUN", "D-PAD MOVE   B JUMP", "HOLD A = FIRE", G.CYAN)
         if (G.isOver) G.drawOver()
         G.drawQuitBar()
     }
 
     export function start(): void {
-        stage = 1; lives = 3; score = 0; weapon = 0; frame = 0
+        stage = 1; score = 0; weapon = 0; frame = 0
+        introT = 2600
         buildStage(1)
         last = control.millis()
-        scene.setBackgroundColor(G.DKBLUE)
+        scene.setBackgroundColor(G.BLACK)
 
         controller.B.onEvent(ControllerButtonEvent.Pressed, function () {
             if (!G.isOver && clearT <= 0 && onGround) {
@@ -495,11 +520,12 @@ namespace Contra {
             last = now
             if (dt > 0.04) dt = 0.04
             if (dt < 0) dt = 0
+            if (introT > 0) introT -= dt * 1000
             if (clearT > 0) {
                 clearT -= dt * 1000
                 if (clearT <= 0) {
-                    if (stage >= 3) G.setOver("RUN & GUN", score, "contrabest")
-                    else { stage++; buildStage(stage) }
+                    stage = stage >= 3 ? 1 : stage + 1
+                    buildStage(stage)
                 }
             } else update(dt)
             draw()

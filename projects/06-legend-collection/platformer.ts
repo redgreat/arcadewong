@@ -23,13 +23,13 @@ namespace Platformer {
     let cam = 0
     let flagX = 90
     let level = 1
-    let lives = 3
     let score = 0
     let coins = 0
     let last = 0
     let clearT = 0
     let frame = 0
     let jumpHold = 0
+    let introT = 0
 
     let ex: number[] = []
     let ey: number[] = []
@@ -164,14 +164,13 @@ namespace Platformer {
         clearT = 0
     }
 
+    // 无限生命：踩到敌人只是变小 + 短暂无敌
     function hurt(): void {
         if (invuln > 0) return
         if (big > 0) { big = 0; ph = 10; py += 4 }
-        else lives--
         invuln = 1600
         vy = -90
         G.beep(140, 180)
-        if (lives <= 0) G.setOver("PLATFORM HERO", score, "platbest")
     }
 
     function update(dt: number): void {
@@ -208,9 +207,7 @@ namespace Platformer {
             vy = 0
         }
         if (py > 128) {
-            lives--
             G.beep(140, 200)
-            if (lives <= 0) { G.setOver("PLATFORM HERO", score, "platbest"); return }
             px = 16; py = 94; vx = 0; vy = 0; cam = 0; invuln = 1200
         }
 
@@ -276,9 +273,10 @@ namespace Platformer {
 
     function drawTile(x: number, y: number, c: string, sx: number): void {
         if (c === "#") {
-            G.r(sx, y, TS, TS, G.BROWN)
+            G.r(sx, y, TS, TS, G.WOOD)
             G.r(sx, y, TS, 2, G.GREEN)
-            G.line(sx + 3, y + 4, sx + 6, y + 4, G.DKRED)
+            G.r(sx + 1, y + 3, 2, 1, G.DKGRAY)
+            G.r(sx + 5, y + 5, 2, 1, G.DKGRAY)
         } else if (c === "B") {
             G.r(sx, y, TS, TS, G.ORANGE)
             G.line(sx, y + 3, sx + 7, y + 3, G.DKRED)
@@ -312,24 +310,46 @@ namespace Platformer {
         }
     }
 
+    // 三角山：每 2 行画一条，做出斜坡剪影（比方块堆叠像山得多）
+    function hill(x: number, baseY: number, w: number, h: number, c: number): void {
+        for (let y = baseY - h; y < baseY; y += 2) {
+            const k = (y - (baseY - h) + 2) / h
+            const ww = Math.max(4, Math.floor(w * k / 4) * 4)
+            G.r(x + Math.floor((w - ww) / 2), y, ww, 2, c)
+        }
+    }
+
     function draw(): void {
-        screen.fill(G.CYAN)
-        // 远山视差
-        for (let i = 0; i < 8; i++) {
-            const hx = i * 46 - Math.floor(cam / 4) % 368
-            const xx = hx < -40 ? hx + 368 : hx
-            G.r(xx, 88, 30, 16, G.TEAL)
-            G.r(xx + 10, 80, 10, 8, G.TEAL)
+        // ---- 天空：整片浅青（硬边拼色反而像一道墙，这里干脆不用渐变）----
+        G.r(0, 12, 160, 92, G.CYAN)
+        // 太阳（橙边黄芯 + 八向光芒）
+        G.disc(133, 24, 8, G.ORANGE)
+        G.disc(133, 24, 6, G.YELLOW)
+        G.r(133, 13, 1, 3, G.YELLOW); G.r(133, 32, 1, 3, G.YELLOW)
+        G.r(120, 24, 3, 1, G.YELLOW); G.r(144, 24, 3, 1, G.YELLOW)
+        // 远山（深蓝剪影，最慢）
+        for (let i = 0; i < 6; i++) {
+            let hx = i * 64 - Math.floor(cam / 6) % 384
+            if (hx < -70) hx += 384
+            hill(hx, 104, 66, 26, G.BLUE)
         }
-        // 云
+        // 近山（青色山脊，稍快）
+        for (let i = 0; i < 7; i++) {
+            let hx = i * 54 - Math.floor(cam / 3) % 378
+            if (hx < -60) hx += 378
+            hill(hx, 104, 56, 15, G.TEAL)
+        }
+        // 云（三层叠加的胖云朵）
         for (let i = 0; i < 5; i++) {
-            const cxp = (i * 44 - Math.floor(cam / 3)) % 220
-            const xx = cxp < -20 ? cxp + 220 : cxp
-            G.r(xx, 20 + (i % 3) * 12, 16, 4, G.WHITE)
-            G.r(xx + 4, 17 + (i % 3) * 12, 8, 4, G.WHITE)
+            let cxp = (i * 47 - Math.floor(cam / 3)) % 235
+            if (cxp < -26) cxp += 235
+            const cy2 = 40 + (i % 3) * 13
+            G.r(cxp, cy2 + 3, 22, 4, G.WHITE)
+            G.r(cxp + 4, cy2, 10, 4, G.WHITE)
+            G.r(cxp + 13, cy2 + 1, 7, 3, G.WHITE)
         }
-        // 地面基线
-        G.r(0, 112, 160, 8, G.GREEN)
+        // 地下：先铺黑，坑里才不会透出天空
+        G.r(0, 104, 160, 16, G.BLACK)
         // 地图
         const c0 = Math.floor(cam / TS) - 1
         const c1 = c0 + 22
@@ -345,6 +365,7 @@ namespace Platformer {
             G.r(fx, 40, 8, 8, G.RED)
             G.r(fx + 2, 42, 4, 4, G.WHITE)
             G.r(fx - 1, 38, 10, 2, G.YELLOW)
+            G.r(fx - 3, 36, 3, 3, G.LTGLOW)
         }
         // 道具
         for (let i = 0; i < ix.length; i++) {
@@ -354,10 +375,12 @@ namespace Platformer {
                 G.r(sx + 1, iy[i] + 1, 6, 3, G.WHITE)
                 G.r(sx + 2, iy[i] + 4, 1, 1, G.BLACK)
                 G.r(sx + 5, iy[i] + 4, 1, 1, G.BLACK)
+                G.r(sx + 3, iy[i], 2, 2, G.GREEN)
             } else {
                 const c = (frame % 12) < 6 ? G.YELLOW : G.WHITE
                 G.r(sx + 2, iy[i], 4, 8, c)
                 G.r(sx, iy[i] + 2, 8, 4, c)
+                G.r(sx + 3, iy[i] + 3, 2, 2, G.ORANGE)
             }
         }
         // 敌人
@@ -366,8 +389,9 @@ namespace Platformer {
             if (sx < -10 || sx > 165) continue
             const sy = ey[i]
             if (etype[i] === 0) {
-                G.r(sx, sy + 2, 8, 6, G.BROWN)
-                G.r(sx + 1, sy, 6, 3, G.BROWN)
+                G.r(sx, sy + 2, 8, 6, G.WOOD)
+                G.r(sx + 1, sy, 6, 3, G.WOOD)
+                G.r(sx + 1, sy, 6, 1, G.LTGLOW)
                 G.r(sx + 1, sy + 4, 2, 2, G.WHITE)
                 G.r(sx + 5, sy + 4, 2, 2, G.WHITE)
                 G.r(sx, sy + 7, 3, 1, G.BLACK)
@@ -376,6 +400,7 @@ namespace Platformer {
                 G.r(sx, sy + 1, 8, 7, G.GREEN)
                 G.r(sx + 2, sy, 5, 3, G.GREEN)
                 G.r(sx + 5, sy + 3, 2, 2, G.WHITE)
+                G.r(sx, sy + 7, 8, 1, G.BLACK)
             }
         }
         // 玩家
@@ -392,25 +417,26 @@ namespace Platformer {
             G.r(sx - 1, sy + h - 2, 3, 2, G.BLACK)
             G.r(sx + 4, sy + h - 2, 3, 2, G.BLACK)
         }
-        // HUD
-        G.r(0, 0, 160, 10, G.BLACK)
+        // ---- HUD：四个字段全部右对齐到固定列，分数再长也不会撞 ----
+        G.hudTop(G.GREEN)
         G.t("W" + level + "-1", 2, 1, G.YELLOW)
-        G.t("SC:" + score, 36, 1, G.WHITE)
-        G.t("C:" + coins, 88, 1, G.YELLOW)
-        G.t("L:" + lives, 118, 1, G.RED)
-        G.t(big > 0 ? "BIG" : "SML", 140, 1, invuln > 0 ? G.CYAN : G.GRAY)
+        G.tr("C " + coins, 68, 1, G.YELLOW)
+        G.tr("SC " + G.sc(score), 116, 1, G.WHITE)
+        G.tr("L:INF", 158, 1, G.RED)
         if (clearT > 0) {
-            G.r(24, 46, 112, 26, G.BLUE)
-            G.tc("WORLD CLEAR!", 50, G.WHITE)
+            G.panel(24, 44, 112, 28, G.CYAN, G.BLUE)
+            G.tc("WORLD CLEAR!", 49, G.WHITE)
             G.tc("+" + 200, 60, G.YELLOW)
         }
+        if (introT > 0) G.introCard("PLATFORM HERO", "D-PAD MOVE   A JUMP", "B = DASH", G.GREEN)
         if (G.isOver) G.drawOver()
         G.drawQuitBar()
     }
 
     export function start(): void {
-        level = 1; lives = 3; score = 0; coins = 0; big = 0
+        level = 1; score = 0; coins = 0; big = 0
         ph = 10; invuln = 0; frame = 0; clearT = 0
+        introT = 2600
         buildLevel(1)
         last = control.millis()
         scene.setBackgroundColor(G.CYAN)
@@ -432,11 +458,12 @@ namespace Platformer {
             last = now
             if (dt > 0.04) dt = 0.04
             if (dt < 0) dt = 0
+            if (introT > 0) introT -= dt * 1000
             if (clearT > 0) {
                 clearT -= dt * 1000
                 if (clearT <= 0) {
-                    if (level >= 3) G.setOver("PLATFORM HERO", score, "platbest")
-                    else { level++; buildLevel(level) }
+                    level = level >= 3 ? 1 : level + 1
+                    buildLevel(level)
                 }
             } else update(dt)
             draw()

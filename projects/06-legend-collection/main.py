@@ -1,6 +1,7 @@
 # ===================================================================
-#  RETRO 4-IN-1  ·  Python 版（教学精简版）
-#  与同目录 5 个 .ts 文件对应：菜单 + 贪吃蛇 / 横版闯关 / 横版枪战 / 坦克大战
+#  RETRO 6-IN-1  ·  Python 版（教学精简版）
+#  与同目录 7 个 .ts 文件对应：菜单 + 贪吃蛇 / 横版闯关 / 横版枪战 /
+#  坦克大战 / 火柴人跑酷 / 飞机大战
 #
 #  TS 版是 1968 行的完整实现（3 世界、3 关 + Boss、4 张地图、6 种道具…）；
 #  本文件把「同样的架构 + 同样的四个玩法」压缩到一节课能读完的篇幅，
@@ -19,6 +20,7 @@ SH = 120
 BLACK = 15
 WHITE = 1
 RED = 2
+PINK = 3
 ORANGE = 4
 YELLOW = 5
 TEAL = 6
@@ -28,6 +30,7 @@ CYAN = 9
 PURPLE = 10
 GRAY = 11
 BROWN = 12
+DKRED = 13
 DKBLUE = 14
 
 
@@ -38,6 +41,10 @@ def r(x, y, w, h, c):
 
 def box(x, y, w, h, c):
     screen.draw_rect(x, y, w, h, c)
+
+
+def line(x0, y0, x1, y1, c):
+    screen.draw_line(Math.floor(x0), Math.floor(y0), Math.floor(x1), Math.floor(y1), c)
 
 
 def t(s, x, y, c):
@@ -77,11 +84,17 @@ def beep(f, ms):
     music.tone_playable(f, ms).play(music.PlaybackMode.IN_BACKGROUND)
 
 
+def tr(s, xr, y, c):
+    """右对齐：xr 是右边界，字段再长也只往左长，不会压到隔壁"""
+    screen.print(s, xr - len(s) * 6, y, c)
+
+
 def hud(title, score, extra, c):
     r(0, 0, SW, 10, BLACK)
+    r(0, 10, SW, 1, c)
     t(title, 2, 1, c)
-    t("SC:" + str(score), 76, 1, WHITE)
-    t(extra, 122, 1, c)
+    tr("SC " + str(score), 110, 1, WHITE)
+    tr(extra, 158, 1, c)
 
 
 def over_panel(title, score, best):
@@ -98,8 +111,11 @@ launch = settings.read_number("lg")
 if launch != 0:
     settings.write_number("lg", 0)   # 读完立刻清零，冷启动永远回菜单
 cursor = 1
-NAMES = ["SNAKE", "PLATFORM HERO", "RUN & GUN", "TANK BATTLE"]
-SUBS = ["GRID CLASSIC", "JUMP & COINS", "SHOOT & SURVIVE", "DEFEND THE BASE"]
+NGAME = 6
+VIS = 4                      # 一屏只放得下 4 条，其余靠滚动
+scroll = 0                   # 列表第 1 条是第几个（0 基）
+NAMES = ["SNAKE", "PLATFORM HERO", "RUN & GUN", "TANK BATTLE", "STICKMAN", "SKY RAIDER"]
+ICONS = [GREEN, RED, CYAN, TEAL, WHITE, YELLOW]
 
 
 def to_menu():
@@ -172,7 +188,7 @@ def snake_start():
         fy = ri(0, ROWS - 1)
 
     def tick():
-        nonlocal dx, dy, last, score, over, speed, frame
+        nonlocal dx, dy, last, score, over, speed, frame, xs, ys, ndx, ndy, best
         frame = frame + 1
         if over:
             return
@@ -193,14 +209,23 @@ def snake_start():
         if ny >= ROWS:
             ny = 0
         i = 0
+        hit_self = False
         while i < len(xs):         # 撞到自己
             if xs[i] == nx and ys[i] == ny:
-                over = True
+                hit_self = True
             i = i + 1
-        if over:
-            beep(196, 180)
+        if hit_self:
+            # 无限生命：撞到自己只是退回三节，不结束
+            beep(150, 220)
             if score > best:
+                best = score
                 settings.write_number("s_best", score)
+            xs = [10, 9, 8]
+            ys = [6, 6, 6]
+            dx = 1
+            dy = 0
+            ndx = 1
+            ndy = 0
             return
         xs.insert_at(0, nx)
         ys.insert_at(0, ny)
@@ -304,15 +329,11 @@ def platformer_start():
                 score = score + 1
                 beep(880, 40)
             i = i + 1
-        if py > 130:         # 掉进深坑
-            lives = lives - 1
-            if lives <= 0:
-                over = True
-                beep(196, 180)
-            else:
-                px = 12.0
-                py = 80.0
-                vy = 0.0
+        if py > 130:         # 掉进深坑：无限生命，直接回起点
+            beep(196, 180)
+            px = 12.0
+            py = 80.0
+            vy = 0.0
         if px > WORLD - 16:
             win = True
             beep(880, 200)
@@ -320,7 +341,7 @@ def platformer_start():
 
     def draw():
         screen.fill(BLUE)
-        hud("PLATFORM HERO", score, "L:" + str(lives), ORANGE)
+        hud("PLATFORM", score, "L:INF", ORANGE)
         i = 0
         while i < len(GROUNDS):
             g = GROUNDS[i]
@@ -442,8 +463,11 @@ def contra_start():
                 ey.remove_at(i)
                 ehp.remove_at(i)
                 beep(160, 90)
-                if hp <= 0:
-                    over = True
+                if hp <= 0:          # 无限生命：回起点满血
+                    hp = 5
+                    px = 20
+                    py = 92
+                    vy = 0
                 continue
             if ex[i] < -10:
                 ex.remove_at(i)
@@ -482,8 +506,11 @@ def contra_start():
                 ebx.remove_at(i)
                 eby.remove_at(i)
                 beep(160, 90)
-                if hp <= 0:
-                    over = True
+                if hp <= 0:          # 无限生命：回起点满血
+                    hp = 5
+                    px = 20
+                    py = 92
+                    vy = 0
                 continue
             if ebx[i] < -5:
                 ebx.remove_at(i)
@@ -495,7 +522,7 @@ def contra_start():
         screen.fill(DKBLUE)
         hud("RUN & GUN", score, "HP:" + str(hp), CYAN)
         r(0, 100, SW, 20, BROWN)
-        t("STAGE " + str(stage), 130, 108, YELLOW)
+        t("STAGE " + str(stage), 104, 108, YELLOW)
         r(px, py, 8, 8, CYAN)
         r(px + 5, py - 2, 4, 3, WHITE)
         i = 0
@@ -677,8 +704,8 @@ def tanks_start():
                 beep(300, 30)
                 continue
             if v == 2 or v == 5:
-                if v == 5:
-                    over = True
+                if v == 5:          # 基地被毁：无限生命，重建老鹰继续
+                    cells[10 * COLS + 7] = 5
                 bx.remove_at(i)
                 by.remove_at(i)
                 bdx.remove_at(i)
@@ -762,22 +789,19 @@ def tanks_start():
             if v == 1:
                 cells[cy * COLS + cx] = 0
             if v == 1 or v == 2 or v == 5:
-                if v == 5:
-                    over = True
+                if v == 5:          # 基地被毁：无限生命，重建老鹰继续
+                    cells[10 * COLS + 7] = 5
                 ebx.remove_at(i)
                 eby.remove_at(i)
                 ebdx.remove_at(i)
                 ebdy.remove_at(i)
                 continue
             if hit(ebx[i], eby[i], 2, 2, px, py, 9, 9):
-                lives = lives - 1
                 ebx.remove_at(i)
                 eby.remove_at(i)
                 ebdx.remove_at(i)
                 ebdy.remove_at(i)
                 beep(160, 90)
-                if lives <= 0:
-                    over = True
                 continue
             if ebx[i] < 0 or ebx[i] > SW or eby[i] < TOP or eby[i] > SH:
                 ebx.remove_at(i)
@@ -792,7 +816,7 @@ def tanks_start():
 
     def draw():
         screen.fill(BLACK)
-        hud("TANK BATTLE", score, "L:" + str(lives), GREEN)
+        hud("TANK BATTLE", score, "L:INF", GREEN)
         y = 0
         while y < ROWS:
             x = 0
@@ -849,6 +873,714 @@ def tanks_start():
 
 
 # ===================================================================
+#  游戏 5：火柴人跑酷 —— 世界自动后退 / 二段跳 / 直拳 / 一条线画的小人
+# ===================================================================
+# ===================================================================
+#  游戏 5：火柴人枪战 —— 世界自动后退 / 拿枪打 / 木箱道具 / 每关一个 BOSS
+#  木箱里出：霰弹枪 / 机枪 / 核弹（全屏清场）/ 无敌 / 分数
+#  无限生命：中弹只是短暂无敌，永远不会 GAME OVER
+# ===================================================================
+# ===================================================================
+#  游戏 5：火柴人跑酷 —— 世界自动后退 / 二段跳 / 直拳 / 一条线画的小人
+#  ⚠️ 这里是「精简版」：TS 版（stickman.ts）已经升级成「拿枪 + 木箱道具 +
+#     每关 BOSS」的完整玩法，Python 版为了守住「一节课能读完」的篇幅，
+#     保留最朴素的跳跃 + 直拳。想对照新玩法请看同目录 stickman.ts。
+# ===================================================================
+def stickman_start():
+    GY = 102
+    PH = 16
+    PX = 40
+    py = GY - PH
+    vy = 0.0
+    jumps = 0
+    onGround = True
+    spd = 66.0
+    dist = 0.0
+    distAcc = 0.0
+    score = 0
+    invuln = 0.0
+    punchT = 0.0
+    punchCd = 0.0
+    combo = 0
+    comboT = 0.0
+    frame = 0
+    gapAcc = 0.0
+    nextGap = 110.0
+    over = False
+    last = control.millis()
+    ex: List[number] = []
+    ey: List[number] = []
+    et: List[number] = []
+
+    def spawn():
+        k = ri(0, 9)
+        if k < 4:
+            ex.append(168)
+            ey.append(GY - 8)
+            et.append(0)
+        elif k < 8:
+            ex.append(168)
+            ey.append(GY - PH)
+            et.append(1)
+        else:
+            ex.append(168)
+            ey.append(70)
+            et.append(2)
+
+    def hurt():
+        # 无限生命：撞到只是短暂无敌
+        nonlocal invuln, vy, over, combo, comboT
+        if invuln > 0 or over:
+            return
+        combo = 0
+        comboT = 0
+        invuln = 1200
+        vy = -110
+        beep(150, 220)
+
+    def punch():
+        nonlocal punchT, punchCd
+        if punchCd > 0 or over:
+            return
+        punchT = 180
+        punchCd = 260
+        beep(760, 30)
+
+    def jump():
+        nonlocal vy, jumps
+        if jumps >= 2 or over:
+            return
+        vy = -170
+        jumps = jumps + 1
+        beep(520 + jumps * 140, 40)
+
+    def tick():
+        nonlocal py, vy, jumps, onGround, spd, dist, distAcc, score
+        nonlocal invuln, punchT, punchCd, combo, comboT, frame
+        nonlocal gapAcc, nextGap, last, over
+        if over:
+            return
+        now = control.millis()
+        dt = (now - last) / 1000
+        last = now
+        if dt > 0.04:
+            dt = 0.04
+        frame = frame + 1
+
+        # 越跑越快，最多 130
+        spd = 66 + Math.floor(dist / 300) * 6
+        if spd > 130:
+            spd = 130
+        dist = dist + spd * dt
+        distAcc = distAcc + spd * dt
+        while distAcc >= 24:          # 每 24px 得 1 分
+            distAcc = distAcc - 24
+            score = score + 1
+        gapAcc = gapAcc + spd * dt
+        if gapAcc > nextGap:
+            gapAcc = 0
+            nextGap = ri(88, 152) * spd / 66
+            spawn()
+
+        # 重力和落地
+        vy = vy + 520 * dt
+        py = py + vy * dt
+        onGround = False
+        if py + PH >= GY:
+            py = GY - PH
+            if vy > 0:
+                vy = 0
+                jumps = 0
+            onGround = True
+
+        if punchT > 0:
+            punchT = punchT - dt * 1000
+        if punchCd > 0:
+            punchCd = punchCd - dt * 1000
+        if invuln > 0:
+            invuln = invuln - dt * 1000
+        if comboT > 0:
+            comboT = comboT - dt * 1000
+            if comboT <= 0:
+                combo = 0
+
+        i = len(ex) - 1
+        while i >= 0:
+            if et[i] == 1:            # 敌兵迎过来，比背景快
+                ex[i] = ex[i] - (spd - 18) * dt
+            else:
+                ex[i] = ex[i] - spd * dt
+            dead = False
+            if ex[i] < -20:
+                dead = True
+            # 直拳：只有出手前 120ms 有效
+            if et[i] == 1 and punchT > 60 and hit(PX + 4, py + 5, 16, 7, ex[i], ey[i], 10, PH):
+                score = score + 100
+                combo = combo + 1
+                comboT = 1500
+                beep(980, 50)
+                dead = True
+            if not dead:
+                w = 10
+                h = PH
+                if et[i] == 0:
+                    h = 8
+                elif et[i] == 2:
+                    w = 5
+                    h = 5
+                if hit(PX + 1, py, 8, PH, ex[i], ey[i], w, h):
+                    if et[i] == 2:
+                        score = score + 50
+                        combo = combo + 1
+                        comboT = 1500
+                        beep(1318, 90)
+                        dead = True
+                    else:
+                        hurt()
+                        if et[i] == 0:
+                            dead = True
+            if dead:
+                ex.remove_at(i)
+                ey.remove_at(i)
+                et.remove_at(i)
+            i = i - 1
+
+    def man(x, y, swing, punching, facing, c):
+        r(x + 3, y, 5, 5, c)
+        line(x + 5, y + 5, x + 5, y + 11, c)
+        if punching > 0:
+            line(x + 5, y + 6, x + 5 + 9 * facing, y + 6, c)
+            line(x + 5, y + 6, x + 2, y + 9, c)
+        else:
+            line(x + 5, y + 6, x + 2, y + 9 - swing, c)
+            line(x + 5, y + 6, x + 8, y + 9 + swing, c)
+        line(x + 5, y + 11, x + 2 - swing, y + PH, c)
+        line(x + 5, y + 11, x + 8 + swing, y + PH, c)
+
+    def draw():
+        screen.fill(BLACK)
+        i = 0
+        while i < 8:                   # 远处楼影视差
+            mx = i * 46 - Math.floor(dist / 4) % 368
+            if mx < -50:
+                mx = mx + 368
+            r(mx, 74, 30, 28, BLUE)
+            r(mx + 11, 66, 9, 9, BLUE)
+            i = i + 1
+        r(0, GY, 160, 120 - GY, DKBLUE)
+        r(0, GY, 160, 2, GREEN)
+        off = Math.floor(dist) % 13
+        i = 0
+        while i < 14:
+            r(i * 13 - off, GY + 5 + (i % 3) * 4, 4, 1, BLACK)
+            i = i + 1
+        i = 0
+        while i < len(ex):
+            if et[i] == 0:
+                r(ex[i], ey[i], 10, 8, GRAY)
+                r(ex[i], ey[i], 10, 2, WHITE)
+            elif et[i] == 1:
+                man(ex[i], ey[i], 0, 0, -1, RED)
+            else:
+                r(ex[i], ey[i], 5, 5, YELLOW if (frame % 20) < 10 else ORANGE)
+            i = i + 1
+        if invuln <= 0 or (frame % 8) < 4:
+            swing = 0
+            if onGround:
+                swing = 1 if Math.floor(frame / 4) % 2 == 0 else -1
+            man(PX, py, swing, 1 if punchT > 0 else 0, 1, WHITE)
+        if punchT > 60:
+            r(PX + 16, py + 5, 4, 3, YELLOW)
+        hud("STICKMAN", score, "L:INF", WHITE)
+        if combo > 1:
+            t("X" + str(combo) + " COMBO", 54, 11, ORANGE)
+        t("A=PUNCH UP=JUMP", 2, 110, GRAY)
+        if over:
+            over_panel("GAME OVER", score, 0)
+
+    # Python 版的 B 键全局留给「回菜单」，所以跳只能用上键
+    controller.A.on_event(ControllerButtonEvent.PRESSED, punch)
+    controller.up.on_event(ControllerButtonEvent.PRESSED, jump)
+    game.on_update(tick)
+    game.on_shade(draw)
+
+
+# ===================================================================
+#  游戏 6：飞机大战 —— 四向移动 / 连发 / 三种强化武器 / 全屏炸弹
+#  捡到炸弹立刻引爆（Python 版的 B 键全局留给「回菜单」）
+# ===================================================================
+def skyraider_start():
+    px = 80.0
+    py = 98.0
+    score = 0
+    lives = 3
+    wkind = 0
+    wtime = 0.0
+    shield = 0.0
+    invuln = 0.0
+    fireCd = 0.0
+    spawnCd = 900.0
+    dropCd = 2400.0
+    flashT = 0.0
+    over = False
+    frame = 0
+    msg = ""
+    msgT = 0.0
+    last = control.millis()
+    WN = ["GUN", "ROCKET", "SHOTGUN", "RAPID"]
+    IK = ["B", "R", "S", "F", "P", "1"]
+    bx: List[number] = []
+    by: List[number] = []
+    bvx: List[number] = []
+    bvy: List[number] = []
+    bd: List[number] = []
+    bs: List[number] = []
+    qx: List[number] = []
+    qy: List[number] = []
+    qvx: List[number] = []
+    qvy: List[number] = []
+    ex: List[number] = []
+    ey: List[number] = []
+    et: List[number] = []
+    ehp: List[number] = []
+    ecd: List[number] = []
+    ix: List[number] = []
+    iy: List[number] = []
+    ik: List[number] = []
+    fx: List[number] = []
+    fy: List[number] = []
+    ft: List[number] = []
+
+    def boom(x, y):
+        if len(fx) < 30:
+            fx.append(x)
+            fy.append(y)
+            ft.append(12)
+
+    def add_b(x, y, vx, vy, dmg, big):
+        if len(bx) > 70:
+            return
+        bx.append(x)
+        by.append(y)
+        bvx.append(vx)
+        bvy.append(vy)
+        bd.append(dmg)
+        bs.append(big)
+
+    def shoot():
+        nonlocal fireCd
+        sx = px
+        sy = py - 7
+        if wkind == 1:                    # 火箭弹：双发平行，穿透
+            add_b(sx - 5, sy, 0, -215, 3, 1)
+            add_b(sx + 5, sy, 0, -215, 3, 1)
+            fireCd = 265
+        elif wkind == 2:                  # 霰弹枪：5 发扇形
+            k = -2
+            while k <= 2:
+                add_b(sx, sy, k * 46, -196, 1, 0)
+                k = k + 1
+            fireCd = 330
+        elif wkind == 3:                  # 速射
+            add_b(sx - 3, sy, 0, -252, 1, 0)
+            add_b(sx + 3, sy, 0, -252, 1, 0)
+            fireCd = 95
+        else:
+            add_b(sx, sy, 0, -246, 1, 0)
+            fireCd = 165
+        beep(880, 25)
+
+    def spawn_enemy():
+        rr = ri(0, 99)
+        kind = 0
+        if rr >= 58 and rr < 82:
+            kind = 1
+        elif rr >= 82:
+            kind = 2
+        hp = 1
+        if kind > 0:
+            hp = 2
+        ex.append(ri(14, 146))
+        ey.append(-10)
+        et.append(kind)
+        ehp.append(hp)
+        ecd.append(ri(700, 1500))
+
+    def drop_item(x, y):
+        rr = ri(0, 99)
+        k = 0
+        if rr >= 26 and rr < 50:
+            k = 1
+        elif rr >= 50 and rr < 74:
+            k = 2
+        elif rr >= 74 and rr < 88:
+            k = 3
+        elif rr >= 88 and rr < 97:
+            k = 4
+        elif rr >= 97:
+            k = 5
+        ix.append(clamp(x, 10, 150))
+        iy.append(y)
+        ik.append(k)
+
+    def shield_break():
+        nonlocal shield, invuln, msg, msgT
+        shield = 0
+        invuln = 900
+        msg = "SHIELD DOWN"
+        msgT = 900
+        beep(300, 160)
+
+    def hit_player():
+        # 无限生命：被打中只是掉武器 + 短暂无敌
+        nonlocal wkind, wtime, invuln, px, py, over
+        if invuln > 0 or over:
+            return
+        wkind = 0
+        wtime = 0
+        boom(px, py)
+        beep(140, 220)
+        invuln = 1600
+        px = 80.0
+        py = 98.0
+
+    def use_bomb():
+        nonlocal flashT, score, msg, msgT
+        flashT = 360
+        i = len(ex) - 1
+        while i >= 0:
+            boom(ex[i], ey[i])
+            score = score + 120
+            ex.remove_at(i)
+            ey.remove_at(i)
+            et.remove_at(i)
+            ehp.remove_at(i)
+            ecd.remove_at(i)
+            i = i - 1
+        while len(qx) > 0:
+            qx.remove_at(len(qx) - 1)
+            qy.remove_at(len(qy) - 1)
+            qvx.remove_at(len(qvx) - 1)
+            qvy.remove_at(len(qvy) - 1)
+        msg = "BOMB!"
+        msgT = 900
+        beep(90, 320)
+
+    def pickup(k):
+        nonlocal wkind, wtime, shield, lives, msg, msgT, score
+        if k == 0:
+            use_bomb()
+            return
+        if k == 1:
+            wkind = 1
+            wtime = 12000
+            msg = "ROCKET!"
+        elif k == 2:
+            wkind = 2
+            wtime = 12000
+            msg = "SHOTGUN!"
+        elif k == 3:
+            wkind = 3
+            wtime = 12000
+            msg = "RAPID!"
+        elif k == 4:
+            shield = 9000
+            msg = "SHIELD!"
+        else:
+            lives = lives + 1
+            msg = "1UP!"
+        msgT = 1200
+        score = score + 50
+        beep(1318, 120)
+
+    # ---- 每帧四小步：拆开写，单个函数别太长（静态 Python 转译有长度限制）----
+    def step_player(dt):
+        nonlocal px, py, fireCd, invuln, wtime, wkind, shield, flashT, msgT
+        if controller.left.is_pressed():
+            px = px - 96 * dt
+        if controller.right.is_pressed():
+            px = px + 96 * dt
+        if controller.up.is_pressed():
+            py = py - 88 * dt
+        if controller.down.is_pressed():
+            py = py + 88 * dt
+        px = clamp(px, 8, 152)
+        py = clamp(py, 24, 108)
+        if fireCd > 0:
+            fireCd = fireCd - dt * 1000
+        if controller.A.is_pressed() and fireCd <= 0:
+            shoot()
+        if invuln > 0:
+            invuln = invuln - dt * 1000
+        if wtime > 0:
+            wtime = wtime - dt * 1000
+            if wtime <= 0:
+                wtime = 0
+                wkind = 0
+        if shield > 0:
+            shield = shield - dt * 1000
+            if shield < 0:
+                shield = 0
+        if flashT > 0:
+            flashT = flashT - dt * 1000
+        if msgT > 0:
+            msgT = msgT - dt * 1000
+
+    def step_shots(dt):
+        nonlocal score
+        i = len(bx) - 1
+        while i >= 0:
+            bx[i] = bx[i] + bvx[i] * dt
+            by[i] = by[i] + bvy[i] * dt
+            gone = False
+            if by[i] < -10 or by[i] > 132 or bx[i] < -10 or bx[i] > 170:
+                gone = True
+            if not gone:
+                w = 3
+                h = 4
+                if bs[i] == 1:
+                    w = 6
+                    h = 9
+                j = len(ex) - 1
+                while j >= 0:
+                    if hit(bx[i] - w / 2, by[i] - h / 2, w, h, ex[j] - 6, ey[j] - 6, 12, 12):
+                        ehp[j] = ehp[j] - bd[i]
+                        if bs[i] == 0:
+                            gone = True
+                        if ehp[j] <= 0:
+                            score = score + 120
+                            boom(ex[j], ey[j])
+                            drop_item(ex[j], ey[j])
+                            ex.remove_at(j)
+                            ey.remove_at(j)
+                            et.remove_at(j)
+                            ehp.remove_at(j)
+                            ecd.remove_at(j)
+                        break
+                    j = j - 1
+            if gone:
+                bx.remove_at(i)
+                by.remove_at(i)
+                bvx.remove_at(i)
+                bvy.remove_at(i)
+                bd.remove_at(i)
+                bs.remove_at(i)
+            i = i - 1
+        i = len(fx) - 1
+        while i >= 0:
+            ft[i] = ft[i] - 1
+            if ft[i] <= 0:
+                fx.remove_at(i)
+                fy.remove_at(i)
+                ft.remove_at(i)
+            i = i - 1
+
+    def step_foes(dt):
+        nonlocal score
+        i = len(ex) - 1
+        while i >= 0:
+            sp = 58
+            if et[i] == 1:
+                sp = 46
+            elif et[i] == 2:
+                sp = 32
+            ey[i] = ey[i] + sp * dt
+            if et[i] == 1:                # 蛇形左右飘
+                ex[i] = ex[i] + Math.cos((frame + i * 7) / 6.0) * 58 * dt
+            ex[i] = clamp(ex[i], 8, 152)
+            if et[i] == 2:                # 射手朝玩家开火
+                ecd[i] = ecd[i] - dt * 1000
+                if ecd[i] <= 0 and ey[i] > 8:
+                    ecd[i] = 1250
+                    ax = px - ex[i]
+                    ay = py - ey[i]
+                    am = Math.sqrt(ax * ax + ay * ay)
+                    if am < 1:
+                        am = 1
+                    qx.append(ex[i])
+                    qy.append(ey[i] + 5)
+                    qvx.append(ax / am * 106)
+                    qvy.append(ay / am * 106)
+                    beep(240, 40)
+            dead = False
+            if ey[i] > 132:
+                dead = True
+            elif hit(px - 7, py - 7, 14, 14, ex[i] - 6, ey[i] - 6, 12, 12):
+                boom(ex[i], ey[i])
+                score = score + 80
+                dead = True
+                if shield > 0:
+                    shield_break()
+                else:
+                    hit_player()
+            if dead:
+                ex.remove_at(i)
+                ey.remove_at(i)
+                et.remove_at(i)
+                ehp.remove_at(i)
+                ecd.remove_at(i)
+            i = i - 1
+        i = len(qx) - 1
+        while i >= 0:
+            qx[i] = qx[i] + qvx[i] * dt
+            qy[i] = qy[i] + qvy[i] * dt
+            gone = False
+            if qy[i] > 130 or qy[i] < -6 or qx[i] < -6 or qx[i] > 166:
+                gone = True
+            elif hit(px - 5, py - 5, 10, 10, qx[i] - 2, qy[i] - 2, 4, 4):
+                gone = True
+                if shield > 0:
+                    shield_break()
+                else:
+                    hit_player()
+            if gone:
+                qx.remove_at(i)
+                qy.remove_at(i)
+                qvx.remove_at(i)
+                qvy.remove_at(i)
+            i = i - 1
+
+    def step_items(dt):
+        i = len(ix) - 1
+        while i >= 0:
+            iy[i] = iy[i] + 34 * dt
+            if iy[i] > 128:
+                ix.remove_at(i)
+                iy.remove_at(i)
+                ik.remove_at(i)
+            elif hit(px - 8, py - 8, 16, 16, ix[i] - 5, iy[i] - 5, 10, 10):
+                k = ik[i]
+                ix.remove_at(i)
+                iy.remove_at(i)
+                ik.remove_at(i)
+                pickup(k)
+            i = i - 1
+
+    def tick():
+        nonlocal frame, last, over, spawnCd, dropCd
+        if over:
+            return
+        now = control.millis()
+        dt = (now - last) / 1000
+        last = now
+        if dt > 0.04:
+            dt = 0.04
+        frame = frame + 1
+
+        step_player(dt)
+        spawnCd = spawnCd - dt * 1000
+        if spawnCd <= 0:                  # 分数越高，来机越快
+            spawnCd = 1250 - Math.floor(score / 14)
+            if spawnCd < 640:
+                spawnCd = 640
+            spawn_enemy()
+        dropCd = dropCd - dt * 1000
+        if dropCd <= 0:                   # 独立的道具雨，保证出现得勤
+            dropCd = ri(2900, 4900)
+            drop_item(ri(18, 142), -8)
+        step_shots(dt)
+        if over:
+            return
+        step_foes(dt)
+        if over:
+            return
+        step_items(dt)
+
+    def draw_foes():
+        i = 0
+        while i < len(ex):
+            x = ex[i]
+            y = ey[i]
+            if et[i] == 0:
+                r(x - 4, y - 5, 8, 3, RED)
+                r(x - 6, y - 2, 12, 3, DKRED)
+                r(x - 3, y + 1, 6, 3, ORANGE)
+            elif et[i] == 1:
+                r(x - 2, y - 5, 4, 10, GREEN)
+                r(x - 6, y - 1, 12, 3, TEAL)
+            else:
+                r(x - 5, y - 5, 10, 8, PURPLE)
+                r(x - 3, y + 3, 6, 3, GRAY)
+                r(x - 4, y - 3, 3, 3, RED)
+                r(x + 1, y - 3, 3, 3, RED)
+            i = i + 1
+        i = 0
+        while i < len(qx):
+            r(qx[i] - 2, qy[i] - 2, 4, 4, RED)
+            r(qx[i] - 1, qy[i] - 1, 2, 2, YELLOW)
+            i = i + 1
+        i = 0
+        while i < len(bx):
+            if bs[i] == 1:
+                r(bx[i] - 3, by[i] - 4, 6, 9, ORANGE)
+                r(bx[i] - 1, by[i] - 3, 2, 7, YELLOW)
+            else:
+                r(bx[i] - 1, by[i] - 2, 3, 4, YELLOW)
+            i = i + 1
+
+    def draw_drops():
+        i = 0
+        while i < len(ix):                # 道具：闪烁方块 + 一个字母
+            x = ix[i]
+            y = iy[i]
+            blink = Math.floor(frame / 4) % 2
+            c = RED
+            if ik[i] == 1:
+                c = ORANGE
+            elif ik[i] == 2:
+                c = YELLOW
+            elif ik[i] == 3:
+                c = CYAN
+            elif ik[i] == 4:
+                c = BLUE
+            elif ik[i] == 5:
+                c = GREEN
+            r(x - 5, y - 5, 10, 10, c if blink == 0 else WHITE)
+            r(x - 4, y - 4, 8, 8, BLACK)
+            t(IK[ik[i]], x - 2, y - 3, c if blink == 0 else WHITE)
+            i = i + 1
+        i = 0
+        while i < len(fx):
+            rr = Math.floor(ft[i] / 3) + 2
+            r(fx[i] - rr, fy[i] - rr, rr * 2, rr * 2, YELLOW if (frame % 4) < 2 else ORANGE)
+            i = i + 1
+
+    def draw():
+        if flashT > 0:
+            screen.fill(WHITE if flashT > 200 else CYAN)
+        else:
+            screen.fill(BLACK)
+            i = 0
+            while i < 30:                 # 星空
+                sx = (i * 53 + 7) % 160
+                sy = (i * 29 + Math.floor(frame * (1 + i % 3))) % 120
+                screen.set_pixel(sx, sy, CYAN if i % 5 == 0 else DKBLUE)
+                i = i + 1
+        draw_foes()
+        draw_drops()
+        if not over and (invuln <= 0 or (frame % 8) < 4):
+            r(px - 1, py - 7, 2, 4, WHITE)
+            r(px - 2, py - 3, 4, 6, WHITE)
+            r(px - 6, py - 1, 12, 3, CYAN)
+            r(px - 3, py + 3, 6, 3, WHITE)
+            r(px - 1, py + 6, 2, 3, YELLOW if (frame % 4) < 2 else ORANGE)
+        if shield > 0:
+            box(px - 9, py - 9, 18, 18, CYAN)
+        hud("SKY RAIDER", score, "L:INF", WHITE)
+        t(WN[wkind], 122, 1, YELLOW)
+        if wtime > 0:
+            r(122, 10, Math.floor(wtime / 12000 * 36), 1, YELLOW)
+        if msgT > 0:
+            tc(msg, 20, YELLOW)
+        t("A=FIRE  B=MENU", 2, 110, GRAY)
+        if over:
+            over_panel("GAME OVER", score, 0)
+
+    game.on_update(tick)
+    game.on_shade(draw)
+
+
+# ===================================================================
 #  菜单 / 启动分支
 # ===================================================================
 if launch == 0:
@@ -856,19 +1588,27 @@ if launch == 0:
     frame = 0
 
     def menu_up():
-        global cursor
+        global cursor, scroll
         if cursor == 1:
-            cursor = 4
+            cursor = NGAME
         else:
             cursor = cursor - 1
+        if cursor - 1 < scroll:
+            scroll = cursor - 1
+        if cursor - 1 > scroll + VIS - 1:
+            scroll = cursor - 1 - VIS + 1
         beep(660, 40)
 
     def menu_down():
-        global cursor
-        if cursor == 4:
+        global cursor, scroll
+        if cursor == NGAME:
             cursor = 1
         else:
             cursor = cursor + 1
+        if cursor - 1 < scroll:
+            scroll = cursor - 1
+        if cursor - 1 > scroll + VIS - 1:
+            scroll = cursor - 1 - VIS + 1
         beep(660, 40)
 
     def menu_play():
@@ -883,22 +1623,23 @@ if launch == 0:
             xx = (i * 37 + Math.floor(frame / 4)) % SW
             screen.set_pixel(xx, 26 + i * 7, CYAN if i % 3 == 0 else DKBLUE)
             i = i + 1
-        # 160x120 布局：标题 2..20，4 条目 26/44/62/80，底部提示 101/110
+        # 160x120 布局：标题 2..20，6 条目一行一个（26 + i*14），底部一行提示
         r(4, 2, 152, 18, BLUE)
         box(4, 2, 152, 18, CYAN)
-        tc("RETRO 4-IN-1", 8, WHITE)
+        tc("RETRO 6-IN-1", 8, WHITE)
         i = 0
-        while i < 4:
-            yy = 26 + i * 18
+        while i < NGAME:
+            yy = 26 + i * 14
             if cursor == i + 1:
-                r(8, yy - 2, 144, 17, DKBLUE)
-                box(8, yy - 2, 144, 17, YELLOW)
-            r(14, yy + 1, 8, 7, GREEN if i == 0 else (RED if i == 1 else (CYAN if i == 2 else TEAL)))
-            t(str(i + 1) + ". " + NAMES[i], 30, yy, YELLOW if cursor == i + 1 else WHITE)
-            t(SUBS[i], 30, yy + 8, ORANGE if cursor == i + 1 else GRAY)
+                r(8, yy - 3, 144, 13, BLUE)
+                box(8, yy - 3, 144, 13, YELLOW)
+                r(8, yy - 3, 2, 13, YELLOW)
+            r(14, yy - 1, 8, 7, ICONS[i])
+            t(str(i + 1) + ".", 28, yy, YELLOW if cursor == i + 1 else GRAY)
+            t(NAMES[i], 46, yy, YELLOW if cursor == i + 1 else WHITE)
             i = i + 1
-        tc("UP/DOWN  A=PLAY", 101, CYAN)
-        tc("B = MENU", 110, GRAY)
+        r(4, 108, 152, 1, BLUE)
+        tc("A=PLAY   B=MENU", 110, CYAN)
 
     controller.up.on_event(ControllerButtonEvent.PRESSED, menu_up)
     controller.down.on_event(ControllerButtonEvent.PRESSED, menu_down)
@@ -910,5 +1651,9 @@ elif launch == 2:
     platformer_start()
 elif launch == 3:
     contra_start()
-else:
+elif launch == 4:
     tanks_start()
+elif launch == 5:
+    stickman_start()
+else:
+    skyraider_start()

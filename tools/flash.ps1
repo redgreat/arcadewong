@@ -17,7 +17,7 @@ $names = @{
     '6' = '06-py-catch-star.uf2'     # Python 版
     '7' = '07-py-dice.uf2'
     '8' = '08-py-stopwatch.uf2'
-    '9' = '09-legend-4in1.uf2'   # 四大经典游戏合集（贪吃蛇/闯关/枪战/坦克）
+    '9' = '09-legend-6in1.uf2'   # 六大经典游戏合集（贪吃蛇/闯关/枪战/坦克/火柴人/飞机大战）
 }
 $name = $names[$Game]
 $fw = Join-Path $fwDir $name

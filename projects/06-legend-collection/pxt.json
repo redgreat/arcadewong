@@ -1,13 +1,15 @@
 {
     "name": "legend-collection",
-    "version": "1.0.0",
-    "description": "4 classic games in one UF2: Snake / Platformer / Run&Gun / Tank Battle",
+    "version": "1.1.0",
+    "description": "6 classic games in one UF2: Snake / Platformer / Run&Gun / Tank Battle / Stickman / Sky Raider",
     "files": [
         "main.ts",
         "snake.ts",
         "platformer.ts",
         "contra.ts",
-        "tanks.ts"
+        "tanks.ts",
+        "stickman.ts",
+        "skyraider.ts"
     ],
     "supportedTargets": [
         "arcade"

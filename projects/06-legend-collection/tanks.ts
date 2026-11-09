@@ -7,7 +7,7 @@ namespace Tanks {
     const TS = 8
     const N = 13
     const OX = 4
-    const OY = 12
+    const OY = 14
     const DX = [0, 1, 0, -1]
     const DY = [-1, 0, 1, 0]
 
@@ -74,7 +74,6 @@ namespace Tanks {
     let pcd = 0
     let grade = 0
     let shield = 0
-    let lives = 3
     let score = 0
     let stage = 1
     let remaining = 0
@@ -86,6 +85,7 @@ namespace Tanks {
     let last = 0
     let baseLost = false
     let spawnCount = 0
+    let introT = 0
 
     let ex: number[] = []
     let ey: number[] = []
@@ -167,11 +167,10 @@ namespace Tanks {
     function respawn(): void {
         px = 32; py = 96; pdir = 0; shield = 2500
     }
+    // 无限生命：坦克炸了就地重生，不结束
     function loseTank(): void {
         if (shield > 0 || G.isOver) return
-        lives--
         boom(px, py, 1)
-        if (lives <= 0) { G.setOver("TANK BATTLE", score, "tankbest"); return }
         respawn()
     }
     function applyPower(kind: number): void {
@@ -183,7 +182,7 @@ namespace Tanks {
             for (let i = 0; i < ex.length; i++) boom(ex[i], ey[i], 1)
             ex = []; ey = []; edir = []; ecd = []; etype = []; ehp = []; eflash = []
         } else if (kind === 4) { steelT = 10000; score += 100; steelBase(true) }
-        else { lives++; score += 200 }
+        else { score += 400 }
         G.beep(1318, 130)
     }
     function steelBase(on: boolean): void {
@@ -334,7 +333,7 @@ namespace Tanks {
             bx[i] += bdx[i] * dt
             by[i] += bdy[i] * dt
             let gone = bulletTile(bx[i], by[i], bpow[i])
-            if (baseLost) { G.setOver("BASE LOST", score, "tankbest"); return }
+            if (baseLost) { baseLost = false; buildStage(stage); return }
             if (!gone && bown[i] === 0) {
                 for (let j = ex.length - 1; j >= 0; j--) {
                     if (G.hit(bx[i] - 1, by[i] - 1, 3, 3, ex[j], ey[j], 8, 8)) {
@@ -412,11 +411,14 @@ namespace Tanks {
 
     function draw(): void {
         screen.fill(G.BLACK)
-        G.r(0, 0, 160, 10, G.BLACK)
+        G.hudTop(G.GREEN)
         G.t("TANK BATTLE", 2, 1, G.YELLOW)
-        G.t("STAGE " + stage, 106, 1, G.CYAN)
-        // 战场边框
-        G.box(OX - 2, OY - 2, 108, 108, G.GRAY)
+        G.tr("STAGE " + stage, 158, 1, G.CYAN)
+        // 战场外框：双层 + 四角标记
+        G.r(2, 12, 108, 108, G.DKGRAY)
+        G.r(3, 13, 106, 106, G.BLACK)
+        G.box(2, 12, 108, 108, G.GRAY)
+        G.corners(2, 12, 108, 108, 8, G.GREEN)
 
         // 地形（草丛留到最后画）
         for (let y = 0; y < N; y++) {
@@ -427,41 +429,44 @@ namespace Tanks {
                 const sy = OY + y * TS
                 if (c === "B" && bhp(x, y) > 0) {
                     const hp = bhp(x, y)
-                    G.r(sx, sy, 8, hp >= 3 ? 8 : 4, G.BROWN)
-                    G.line(sx, sy + 3, sx + 7, sy + 3, G.DKRED)
-                    G.line(sx + 4, sy, sx + 4, sy + 3, G.DKRED)
-                    if (hp >= 3) G.line(sx + 2, sy + 4, sx + 2, sy + 7, G.DKRED)
+                    G.r(sx, sy, 8, hp >= 3 ? 8 : 4, G.WOOD)
+                    G.r(sx, sy, 8, 1, G.ORANGE)
+                    G.r(sx, sy + 3, 8, 1, G.DKGRAY)
+                    G.r(sx + 4, sy, 1, 3, G.DKGRAY)
+                    if (hp >= 3) G.r(sx + 2, sy + 5, 1, 2, G.DKGRAY)
                 } else if (c === "S") {
                     G.r(sx, sy, 8, 8, G.GRAY)
+                    G.r(sx, sy, 8, 1, G.WHITE)
                     G.r(sx + 1, sy + 1, 2, 2, G.WHITE)
                     G.r(sx + 5, sy + 5, 2, 2, G.WHITE)
-                    G.box(sx, sy, 8, 8, G.DKBLUE)
+                    G.box(sx, sy, 8, 8, G.DKGRAY)
                 } else if (c === "W") {
                     G.r(sx, sy, 8, 8, G.BLUE)
-                    G.line(sx, sy + 2 + (frame % 10 < 5 ? 0 : 1), sx + 7, sy + 2, G.CYAN)
-                    G.line(sx, sy + 6, sx + 7, sy + 5 + (frame % 10 < 5 ? 0 : 1), G.CYAN)
+                    G.r(sx, sy + 2 + (frame % 10 < 5 ? 0 : 1), 8, 1, G.CYAN)
+                    G.r(sx, sy + 6, 8, 1, G.CYAN)
                 }
             }
         }
         // 老鹰基地
         const bx0 = OX + 6 * TS, by0 = OY + 12 * TS
         G.r(bx0, by0, 8, 8, G.YELLOW)
-        G.r(bx0 + 2, by0 + 1, 4, 4, G.ORANGE)
+        G.r(bx0 + 1, by0 + 1, 6, 6, G.ORANGE)
         G.r(bx0, by0 + 5, 3, 3, G.RED)
         G.r(bx0 + 5, by0 + 5, 3, 3, G.RED)
-        G.r(bx0 + 3, by0 + 3, 1, 1, G.BLACK)
+        G.r(bx0 + 3, by0 + 3, 2, 2, G.BLACK)
+        G.r(bx0 + 3, by0, 2, 2, G.WHITE)
 
         // 道具
         for (let i = 0; i < ux.length; i++) {
             if ((frame % 20) < 10) continue
             const sx = OX + ux[i], sy = OY + uy[i]
             G.r(sx, sy, 8, 8, G.YELLOW)
-            G.r(sx + 1, sy + 1, 6, 6, G.DKBLUE)
+            G.r(sx + 1, sy + 1, 6, 6, G.BLACK)
             G.t("" + ut[i], sx + 2, sy, G.WHITE)
         }
         // 坦克
         if (shield > 0 && (frame % 8) < 4) {
-            G.r(OX + px - 1, OY + py - 1, 10, 10, G.CYAN)
+            G.box(OX + px - 2, OY + py - 2, 12, 12, G.CYAN)
         }
         drawTank(OX + px, OY + py, pdir, G.YELLOW, G.GREEN)
         for (let i = 0; i < ex.length; i++) {
@@ -493,32 +498,38 @@ namespace Tanks {
                 G.r(sx + 5, sy + 4, 2, 2, G.TEAL)
             }
         }
-        // 右侧信息栏
-        const PX = 114
-        G.t("SCORE", PX, 14, G.WHITE)
-        G.t("" + score, PX, 23, G.YELLOW)
-        G.t("LIVES " + lives, PX, 36, G.RED)
-        G.t("GRADE " + grade, PX, 45, G.CYAN)
-        G.t("ENEMY", PX, 58, G.WHITE)
+        // ---- 右侧信息栏（112..158，每行都按 6px/字 精算过）----
+        const PX = 112
+        G.t("SCORE", PX, 13, G.GRAY)
+        G.tr("" + score, 158, 22, G.YELLOW)
+        G.r(PX, 32, 46, 1, G.BLUE)
+        G.t("ENEMY", PX, 35, G.GRAY)
         const left = remaining + ex.length
         for (let i = 0; i < Math.min(20, left); i++) {
-            G.r(PX + (i % 5) * 8, 68 + Math.floor(i / 5) * 6, 5, 4, G.RED)
+            G.r(PX + (i % 5) * 9, 44 + Math.floor(i / 5) * 6, 5, 4, G.RED)
+            G.r(PX + (i % 5) * 9, 44 + Math.floor(i / 5) * 6, 5, 1, G.ORANGE)
         }
-        G.t("LEFT " + left, PX, 94, G.WHITE)
-        if (shield > 0) G.t("SHIELD", PX, 104, G.CYAN)
-        else if (freezeT > 0) G.t("FREEZE", PX, 104, G.CYAN)
-        else if (steelT > 0) G.t("STEEL", PX, 104, G.GRAY)
+        G.r(PX, 70, 46, 1, G.BLUE)
+        G.t("LEFT", PX, 73, G.GRAY)
+        G.tr("" + left, 158, 73, G.WHITE)
+        G.t("GRADE " + grade, PX, 84, G.CYAN)
+        if (shield > 0) G.t("SHIELD", PX, 96, G.CYAN);
+        else if (freezeT > 0) G.t("FREEZE", PX, 96, G.CYAN);
+        else if (steelT > 0) G.t("STEEL", PX, 96, G.GRAY);
+        G.t("L:INF", PX, 108, G.RED)
         if (clearT > 0) {
-            G.r(24, 46, 112, 26, G.BLUE)
-            G.tc("STAGE CLEAR!", 50, G.WHITE)
-            G.tc("+500", 61, G.YELLOW)
+            G.panel(24, 44, 112, 30, G.CYAN, G.BLUE)
+            G.tc("STAGE CLEAR!", 49, G.WHITE)
+            G.tc("+" + 500, 60, G.YELLOW)
         }
+        if (introT > 0) G.introCard("STAGE " + stage, "D-PAD MOVE   A FIRE", "", G.GREEN)
         if (G.isOver) G.drawOver()
         G.drawQuitBar()
     }
 
     export function start(): void {
-        stage = 1; lives = 3; score = 0; grade = 0; frame = 0
+        stage = 1; score = 0; grade = 0; frame = 0
+        introT = 2600
         buildStage(1)
         last = control.millis()
         scene.setBackgroundColor(G.BLACK)
@@ -530,11 +541,13 @@ namespace Tanks {
             last = now
             if (dt > 0.04) dt = 0.04
             if (dt < 0) dt = 0
+            if (introT > 0) introT -= dt * 1000
             if (clearT > 0) {
                 clearT -= dt * 1000
                 if (clearT <= 0) {
-                    if (stage >= 4) G.setOver("TANK BATTLE", score, "tankbest")
-                    else { stage++; buildStage(stage) }
+                    stage = stage >= 4 ? 1 : stage + 1
+                    buildStage(stage)
+                    introT = 2000
                 }
             } else update(dt)
             draw()
