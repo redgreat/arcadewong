@@ -1,0 +1,15 @@
+{
+    "name": "flappy-bird",
+    "version": "1.0.0",
+    "description": "飞扬的小鸟：练习重力、按键、随机障碍与碰撞结束",
+    "files": [
+        "main.ts"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}

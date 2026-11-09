@@ -218,3 +218,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+.workbuddy/
+.tmp-pycheck/
+.playwright-cli/
+
+# ---- MakeCode Arcade / mkc 生成的构建产物（源码与 UF2 仍需提交） ----
+built/
+pxt_modules/
+native/built/
+.build-ts/
+.build-py/
+tools/flash.log
+tools/driver-install.log
+*.uf2.bak

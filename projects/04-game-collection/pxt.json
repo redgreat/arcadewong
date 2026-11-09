@@ -1,0 +1,15 @@
+{
+    "name": "game-collection",
+    "version": "1.0.0",
+    "description": "一个 UF2 内菜单切换 3 个游戏",
+    "files": [
+        "main.ts"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}

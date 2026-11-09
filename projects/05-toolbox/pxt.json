@@ -1,0 +1,15 @@
+{
+    "name": "toolbox",
+    "version": "1.0.0",
+    "description": "非游戏应用合集：计算器、秒表、骰子、手电筒、反应测试",
+    "files": [
+        "main.ts"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}

@@ -1,0 +1,15 @@
+{
+    "name": "space-shooter",
+    "version": "1.0.0",
+    "description": "太空射击：练习发射子弹、两种碰撞、分数与生命",
+    "files": [
+        "main.ts"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}

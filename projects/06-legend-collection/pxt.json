@@ -1,0 +1,19 @@
+{
+    "name": "legend-collection",
+    "version": "1.0.0",
+    "description": "4 classic games in one UF2: Snake / Platformer / Run&Gun / Tank Battle",
+    "files": [
+        "main.ts",
+        "snake.ts",
+        "platformer.ts",
+        "contra.ts",
+        "tanks.ts"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}

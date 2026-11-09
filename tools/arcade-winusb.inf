@@ -1,0 +1,30 @@
+; MakeCode Arcade / ELECFREAKS Retro Arcade (F4) - second vendor-specific USB interface
+; Binds the missing "Arcade (app)" MI_01 interface to the built-in, Microsoft-signed WinUSB driver.
+; No third-party binaries are copied; winusb.sys comes from Windows itself.
+[Version]
+Signature = "$Windows NT$"
+Class     = USBDevice
+ClassGuid = {88BAE032-5A81-49F0-BC3D-A4FF138216D6}
+Provider  = %Provider%
+DriverVer = 11/09/2026,1.0.0.0
+
+[Manufacturer]
+%Provider% = ArcadeDevices,NTamd64
+
+[ArcadeDevices.NTamd64]
+%ArcadeDevice% = WinUSB_Install, USB\VID_0483&PID_5799&MI_01
+
+[WinUSB_Install]
+Include = winusb.inf
+Needs   = WINUSB.NT
+
+[WinUSB_Install.Services]
+Include = winusb.inf
+Needs   = WINUSB.NT.Services
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[Strings]
+Provider     = "MakeCode Arcade"
+ArcadeDevice = "Arcade (app) WinUSB Interface"

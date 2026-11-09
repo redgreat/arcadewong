@@ -1,0 +1,16 @@
+{
+    "name": "py-catch-star",
+    "version": "1.0.0",
+    "description": "Python 版接星星游戏",
+    "preferredEditor": "pyprj",
+    "files": [
+        "main.py"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}

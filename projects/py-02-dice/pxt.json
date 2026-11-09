@@ -1,0 +1,16 @@
+{
+    "name": "py-dice",
+    "version": "1.0.0",
+    "description": "Python 版电子骰子",
+    "preferredEditor": "pyprj",
+    "files": [
+        "main.py"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}

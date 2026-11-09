@@ -1,0 +1,8 @@
+{
+    "name": "py-03-stopwatch-native",
+    "version": "1.0.0",
+    "files": ["main.ts"],
+    "supportedTargets": ["arcade"],
+    "dependencies": {"device": "*"},
+    "testDependencies": {}
+}

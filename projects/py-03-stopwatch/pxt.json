@@ -1,0 +1,16 @@
+{
+    "name": "py-stopwatch",
+    "version": "1.0.0",
+    "description": "Python 版秒表",
+    "preferredEditor": "pyprj",
+    "files": [
+        "main.py"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}

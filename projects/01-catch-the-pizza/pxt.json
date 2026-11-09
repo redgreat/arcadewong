@@ -1,0 +1,15 @@
+{
+    "name": "catch-the-pizza",
+    "version": "1.0.0",
+    "description": "接披萨：左右移动接住掉落物，练习精灵、碰撞与计分",
+    "files": [
+        "main.ts"
+    ],
+    "supportedTargets": [
+        "arcade"
+    ],
+    "dependencies": {
+        "device": "*"
+    },
+    "testDependencies": {}
+}
